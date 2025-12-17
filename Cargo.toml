@@ -1,0 +1,14 @@
+[workspace]
+members = [
+    "backend/model",
+    "backend/renderer",
+    "apps/desktop/cognexus",
+]
+
+resolver = "3"
+
+[workspace.dependencies]
+tauri = { version = "2.9.5", features = [] }
+tauri-build = { version = "2.5.3", features = [] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.145" }
