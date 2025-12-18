@@ -5,6 +5,9 @@ edition = "2024"
 
 [dependencies]
 thiserror = { workspace = true }
+wgpu = { workspace = true }
+pollster = { workspace = true }
+raw-window-handle = { workspace = true }
 
 proto = { workspace = true }
 cognexus-model = { workspace = true }
