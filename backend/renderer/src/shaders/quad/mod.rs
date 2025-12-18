@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use cognexus_model::geometry::quad::Quad;
-use glam::{Mat4, Quat, Vec3, Vec4};
+use glam::{Mat4, Vec3};
 use wgpu::{VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
 pub const LABEL: &str = "Quad Shader";

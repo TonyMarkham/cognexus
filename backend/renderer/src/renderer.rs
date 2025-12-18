@@ -6,13 +6,23 @@ use std::panic::Location as PanicLocation;
 use wgpu::PowerPreference::HighPerformance;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::wgt::TextureViewDescriptor;
-use wgpu::{BlendState, Buffer, BufferUsages, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Face, Features, FragmentState, FrontFace, IndexFormat, Instance, Limits, LoadOp, MemoryHints, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, TextureUsages, VertexState};
+use wgpu::{
+    BlendState, Buffer, BufferUsages, Color, ColorTargetState, ColorWrites,
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features,
+    FragmentState, FrontFace, IndexFormat, Instance, Limits, LoadOp, MemoryHints, MultisampleState,
+    Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+    RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface,
+    SurfaceConfiguration, TextureUsages, VertexState,
+};
 
 pub struct Renderer {
     surface: Surface<'static>,
     device: Device,
     queue: Queue,
+    #[allow(dead_code)]
     config: SurfaceConfiguration,
+    #[allow(dead_code)]
     size: (u32, u32),
     render_pipeline: RenderPipeline,
     vertex_buffer: Buffer,
