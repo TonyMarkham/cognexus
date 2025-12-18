@@ -2,6 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use prost::Message;
+use cognexus_model::geometry::quad::Quad;
+use cognexus_renderer::draw_quad as renderer_draw_quad;
 
 fn main() {
     tauri::Builder::default()
@@ -12,14 +14,17 @@ fn main() {
 
 #[tauri::command]
 fn draw_quad(data: Vec<u8>) -> Result<(), String> {
-    // Deserialize the protobuf bytes
     let command = proto::DrawQuadCommand::decode(&data[..])
-        .map_err(|e| format!("Failed to decode command: {}", e))?;
+        .map_err(|e| format!("Failed to decode command: {e}"))?;
 
-    // Log it for now (we'll connect to renderer later)
-    println!("Received DrawQuad: x={}, y={}, z={}, width={}, height={}, color=({},{},{},{})",
-             command.x, command.y, command.z, command.width, command.height,
-             command.r, command.g, command.b, command.a);
+    let quad = Quad {
+        position: [command.x, command.y, command.z],
+        size: [command.width, command.height],
+        color: [command.r, command.g, command.b, command.a],
+    };
+
+    renderer_draw_quad(&quad)
+        .map_err(|e| format!("Failed to draw quad: {e}"))?;
 
     Ok(())
 }

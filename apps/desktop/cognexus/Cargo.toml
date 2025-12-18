@@ -12,4 +12,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 prost = { workspace = true }
 
-proto = { path = "../../../backend/proto" }
+proto = { workspace = true }
+cognexus-renderer = { workspace = true }
+cognexus-model = { workspace = true }

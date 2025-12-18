@@ -301,6 +301,8 @@ dependencies = [
 name = "cognexus-desktop"
 version = "0.1.0"
 dependencies = [
+ "cognexus-model",
+ "cognexus-renderer",
  "prost",
  "proto",
  "serde",
@@ -316,6 +318,12 @@ version = "0.1.0"
 [[package]]
 name = "cognexus-renderer"
 version = "0.1.0"
+dependencies = [
+ "cognexus-model",
+ "common",
+ "proto",
+ "thiserror 2.0.17",
+]
 
 [[package]]
 name = "combine"
@@ -326,6 +334,10 @@ dependencies = [
  "bytes",
  "memchr",
 ]
+
+[[package]]
+name = "common"
+version = "0.1.0"
 
 [[package]]
 name = "convert_case"

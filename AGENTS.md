@@ -114,8 +114,14 @@ cd frontend/cognexus && dotnet restore
 
 **Desktop (Tauri):**
 ```bash
-cargo tauri dev          # Development mode
+cargo tauri dev          # Development mode (Hot Reload)
 cargo tauri build        # Production build
+```
+
+**Running the Production Build:**
+```bash
+# MacOS
+./target/release/bundle/macos/Cognexus.app/Contents/MacOS/cognexus-desktop
 ```
 
 **Web (future):**
