@@ -13,3 +13,14 @@ message DrawQuadCommand {
   float b = 8;
   float a = 9;
 }
+
+message PanCameraCommand {
+  float delta_x = 1; // Screen-space pixel delta X
+  float delta_y = 2; // Screen-space pixel delta Y
+}
+
+message ZoomCameraCommand {
+  float delta = 1;   // Scroll wheel delta
+  float pivot_x = 2; // Screen X coordinate to zoom toward
+  float pivot_y = 3; // Screen Y coordinate to zoom toward
+}

@@ -1,6 +1,7 @@
 use crate::error::RendererError;
 use crate::shaders::quad::{INDICES, InstanceRaw, LABEL, SHADER_SOURCE, VERTICES, Vertex};
 use cognexus_model::camera::camera_2d::{Camera2D, Camera2DBuilder};
+use cognexus_model::drawable::Drawable;
 use cognexus_model::geometry::quad::Quad;
 use common::error::error_location::ErrorLocation;
 use std::panic::Location as PanicLocation;
@@ -41,6 +42,7 @@ pub struct Renderer {
     #[allow(dead_code)]
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
+    drawables: Vec<Box<dyn Drawable>>,
 }
 
 impl Renderer {
@@ -216,6 +218,7 @@ impl Renderer {
             camera,
             camera_buffer,
             camera_bind_group,
+            drawables: Vec::new(),
         })
     }
 
@@ -241,6 +244,82 @@ impl Renderer {
             bytemuck::cast_slice(&[camera_uniform]),
         );
     }
+
+    pub fn add_quad(&mut self, quad: Quad) {
+        self.drawables.push(Box::new(quad));
+    }
+
+    pub fn render(&mut self) -> Result<(), RendererError> {
+        let output = self
+            .surface
+            .get_current_texture()
+            .map_err(|e| RendererError::WgpuError {
+                message: format!("Failed to get texture: {e}"),
+                location: ErrorLocation::from(PanicLocation::caller()),
+            })?;
+
+        let view = output
+            .texture
+            .create_view(&TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("Render pass"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(Color {
+                            r: 0.1,
+                            g: 0.1,
+                            b: 0.1,
+                            a: 1.0,
+                        }),
+                        store: StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
+
+            // Draw all drawables
+            for drawable in &self.drawables {
+                let instance_data = InstanceRaw {
+                    model: drawable.model_matrix().to_cols_array_2d(),
+                    color: drawable.color(),
+                };
+
+                let instance_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("Instance Buffer"),
+                    contents: bytemuck::cast_slice(&[instance_data]),
+                    usage: BufferUsages::VERTEX,
+                });
+
+                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            }
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        Ok(())
+    }
+
+    // ---------------------------------------------------------------------- //
 
     pub fn draw_quad(&self, quad: &Quad) -> Result<(), RendererError> {
         let output = self

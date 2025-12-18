@@ -50,7 +50,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![draw_quad])
+        .invoke_handler(tauri::generate_handler![draw_quad, pan_camera, zoom_camera])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -60,6 +60,43 @@ struct AppState {
 }
 
 // -------------------------------------------------------------------------- //
+
+#[tauri::command]
+async fn pan_camera(delta_x: f32, delta_y: f32, state: State<'_, AppState>) -> Result<(), String> {
+    let mut guard = state.renderer.lock().await;
+
+    if let Some(renderer) = guard.as_mut() {
+        renderer.pan_camera(delta_x, delta_y);
+        renderer
+            .render()
+            .map_err(|e| format!("Failed to render: {e}"))?;
+    } else {
+        return Err("Renderer not initialized".to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn zoom_camera(
+    delta: f32,
+    pivot_x: f32,
+    pivot_y: f32,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut guard = state.renderer.lock().await;
+
+    if let Some(renderer) = guard.as_mut() {
+        renderer.zoom_camera(delta, pivot_x, pivot_y);
+        renderer
+            .render()
+            .map_err(|e| format!("Failed to render: {e}"))?;
+    } else {
+        return Err("Renderer not initialized".to_string());
+    }
+
+    Ok(())
+}
 
 #[tauri::command]
 async fn draw_quad(data: Vec<u8>, state: State<'_, AppState>) -> Result<(), String> {
@@ -72,12 +109,13 @@ async fn draw_quad(data: Vec<u8>, state: State<'_, AppState>) -> Result<(), Stri
         color: [command.r, command.g, command.b, command.a],
     };
 
-    let guard = state.renderer.lock().await;
+    let mut guard = state.renderer.lock().await;
 
-    if let Some(renderer) = guard.as_ref() {
+    if let Some(renderer) = guard.as_mut() {
+        renderer.add_quad(quad);
         renderer
-            .draw_quad(&quad)
-            .map_err(|e| format!("Failed to draw quad: {e}"))?;
+            .render()
+            .map_err(|e| format!("Failed to render: {e}"))?;
     } else {
         return Err(String::from("Renderer is not initialized yet"));
     }
