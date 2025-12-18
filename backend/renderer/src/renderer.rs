@@ -1,5 +1,6 @@
 use crate::error::RendererError;
 use crate::shaders::quad::{INDICES, InstanceRaw, LABEL, SHADER_SOURCE, VERTICES, Vertex};
+use cognexus_model::camera::camera_2d::{Camera2D, Camera2DBuilder};
 use cognexus_model::geometry::quad::Quad;
 use common::error::error_location::ErrorLocation;
 use std::panic::Location as PanicLocation;
@@ -7,14 +8,21 @@ use wgpu::PowerPreference::HighPerformance;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::wgt::TextureViewDescriptor;
 use wgpu::{
-    BlendState, Buffer, BufferUsages, Color, ColorTargetState, ColorWrites,
-    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features,
-    FragmentState, FrontFace, IndexFormat, Instance, Limits, LoadOp, MemoryHints, MultisampleState,
-    Operations, PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
-    RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface,
-    SurfaceConfiguration, TextureUsages, VertexState,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferBindingType, BufferUsages, Color,
+    ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompositeAlphaMode, Device,
+    DeviceDescriptor, Features, FragmentState, FrontFace, IndexFormat, Instance, Limits, LoadOp,
+    MemoryHints, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode,
+    PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
+    ShaderSource, ShaderStages, StoreOp, Surface, SurfaceConfiguration, TextureUsages, VertexState,
 };
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct CameraUniform {
+    view_proj: [[f32; 4]; 4],
+}
 
 pub struct Renderer {
     surface: Surface<'static>,
@@ -28,6 +36,11 @@ pub struct Renderer {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     num_indices: u32,
+    #[allow(dead_code)]
+    camera: Camera2D,
+    #[allow(dead_code)]
+    camera_buffer: Buffer,
+    camera_bind_group: BindGroup,
 }
 
 impl Renderer {
@@ -87,9 +100,51 @@ impl Renderer {
             source: ShaderSource::Wgsl(SHADER_SOURCE.into()),
         });
 
+        let camera = Camera2DBuilder::default()
+            .with_viewport(width, height)
+            .build()
+            .map_err(|e| RendererError::WgpuError {
+                message: format!("Failed to create Camera: {e}"),
+                location: ErrorLocation::from(PanicLocation::caller()),
+            })?;
+
+        let camera_uniform = CameraUniform {
+            view_proj: camera.view_projection_matrix().to_cols_array_2d(),
+        };
+
+        let camera_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Camera Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("Camera Bind Group Layout"),
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0, // @binding(0) in shader
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Camera Bind Group"),
+            layout: &camera_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
+
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[], // No uniforms/textures yet
+            bind_group_layouts: &[&camera_bind_group_layout], // No uniforms/textures yet
             push_constant_ranges: &[],
         });
 
@@ -158,6 +213,9 @@ impl Renderer {
             vertex_buffer,
             index_buffer,
             num_indices,
+            camera,
+            camera_buffer,
+            camera_bind_group,
         })
     }
 
@@ -211,6 +269,7 @@ impl Renderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
