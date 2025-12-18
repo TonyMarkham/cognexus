@@ -8,11 +8,14 @@
   },
   "app": {
     "withGlobalTauri": true,
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Cognexus",
         "width": 1200,
-        "height": 800
+        "height": 800,
+        "transparent": true,
+        "decorations": true
       }
     ],
     "security": {

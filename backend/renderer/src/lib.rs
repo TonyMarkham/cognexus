@@ -1,5 +1,6 @@
 mod error;
 mod renderer;
+pub mod shaders;
 
 use crate::error::RendererError;
 use cognexus_model::geometry::quad::Quad;
