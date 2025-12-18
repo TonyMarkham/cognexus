@@ -1,4 +1,8 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using Cognexus.Commands
+@using Google.Protobuf
+@inject IJSRuntime JS
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">CognexusBlazor</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
@@ -14,6 +18,12 @@
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
+
+        <div class="nav-item px-3">
+            <button class="nav-link btn btn-link" @onclick="DrawTestQuad">
+                Draw Quad
+            </button>
+        </div>
     </nav>
 </div>
 
@@ -25,5 +35,27 @@
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    private async Task DrawTestQuad()
+    {
+        var command = new DrawQuadCommand
+        {
+            X = 100f,
+            Y = 200f,
+            Z = 0f,
+            Width = 50f,
+            Height = 50f,
+            R = 1.0f,
+            G = 0.0f,
+            B = 0.0f,
+            A = 1.0f
+        };
+
+        // Serialize to protobuf bytes
+        var data = command.ToByteArray();
+        
+        // Invoke Tauri command via JS interop
+        await JS.InvokeVoidAsync("window.__TAURI__.core.invoke", "draw_quad", new { data });
     }
 }

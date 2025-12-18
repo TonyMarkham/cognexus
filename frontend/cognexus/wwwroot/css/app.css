@@ -113,3 +113,23 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+#node-graph {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    background: #1a1a1a; /* dark background like N8N */
+}
+
+#app {
+    position: relative;
+    z-index: 1;
+    pointer-events: none; /* let clicks through to canvas */
+}
+
+#app > * {
+    pointer-events: auto; /* but UI elements should catch clicks */
+}

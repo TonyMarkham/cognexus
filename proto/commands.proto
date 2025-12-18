@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package cognexus.commands;
+
+message DrawQuadCommand {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float width = 4;
+  float height = 5;
+  float r = 6;
+  float g = 7;
+  float b = 8;
+  float a = 9;
+}

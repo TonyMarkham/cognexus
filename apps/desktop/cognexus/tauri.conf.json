@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.cognexus.app",
   "build": {
-    "frontendDist": "../../../frontend/cognexus/bin/Release/net9.0/publish/wwwroot",
-    "devUrl": "http://localhost:5231"
+    "frontendDist": "./frontend/wwwroot"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Cognexus",

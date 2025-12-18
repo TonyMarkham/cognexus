@@ -38,3 +38,6 @@ Thumbs.db
 **/dist/
 **/WixTools/
 **/gen/
+
+# Generated frontend artifacts
+apps/desktop/cognexus/frontend/

@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package cognexus.events;
+
+message ErrorEvent {
+  string message = 1;
+  string error_code = 2;  // optional: "INVALID_POSITION", "OUT_OF_BOUNDS", etc.
+}
