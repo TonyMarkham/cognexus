@@ -8,6 +8,7 @@ pub const DEFAULT_MIN_ZOOM: f32 = 0.1;
 pub const MIN_ZOOM_MAX: f32 = 0.01;
 pub const MAX_ZOOM: f32 = 1000.0;
 pub const DEFAULT_MAX_ZOOM: f32 = 100.0;
+pub const DEFAULT_ZOOM_RATE: f32 = 0.001;
 
 pub struct Camera2D {
     position: Vec2,
@@ -60,6 +61,49 @@ impl Camera2D {
 
     pub fn view_projection_matrix(&self) -> Mat4 {
         self.projection_matrix() * self.view_matrix()
+    }
+
+    pub fn pan_by_screen_delta(&mut self, delta_x: f32, delta_y: f32) {
+        let aspect_ratio = self.viewport_size.0 as f32 / self.viewport_size.1 as f32;
+        let height = 2.0 / self.zoom;
+        let width = height * aspect_ratio;
+
+        let world_per_pixel_x = width / self.viewport_size.0 as f32;
+        let world_per_pixel_y = height / self.viewport_size.1 as f32;
+
+        // Convert screen delta to world delta
+        // Negative X: dragging right = pan canvas right (camera moves left)
+        // Negative Y: dragging down = pan canvas down (camera moves up)
+        self.position.x -= delta_x * world_per_pixel_x;
+        self.position.y -= delta_y * world_per_pixel_y;
+    }
+
+    pub fn zoom_toward_point(&mut self, scroll_delta: f32, screen_x: f32, screen_y: f32) {
+        let world_pos_before = self.screen_to_world(screen_x, screen_y);
+
+        let zoom_factor = 1.0 + (scroll_delta * -DEFAULT_ZOOM_RATE);
+        let new_zoom = (self.zoom * zoom_factor).clamp(self.zoom_min, self.zoom_max);
+
+        self.zoom = new_zoom;
+
+        let world_pos_after = self.screen_to_world(screen_x, screen_y);
+
+        let world_delta = world_pos_after - world_pos_before;
+        self.position -= world_delta;
+    }
+
+    pub fn screen_to_world(&self, screen_x: f32, screen_y: f32) -> Vec2 {
+        let ndc_x = (screen_x / self.viewport_size.0 as f32) * 2.0 - 1.0;
+        let ndc_y = 1.0 - (screen_y / self.viewport_size.1 as f32) * 2.0;
+
+        let aspect = self.viewport_size.0 as f32 / self.viewport_size.1 as f32;
+        let viewport_height_world = 2.0 / self.zoom;
+        let viewport_width_world = viewport_height_world * aspect;
+
+        Vec2::new(
+            self.position.x + ndc_x * viewport_width_world / 2.0,
+            self.position.y + ndc_y * viewport_height_world / 2.0,
+        )
     }
 }
 

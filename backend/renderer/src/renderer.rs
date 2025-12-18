@@ -219,6 +219,29 @@ impl Renderer {
         })
     }
 
+    pub fn pan_camera(&mut self, delta_x: f32, delta_y: f32) {
+        self.camera.pan_by_screen_delta(delta_x, delta_y);
+        self.update_camera_uniform();
+    }
+
+    pub fn zoom_camera(&mut self, scroll_delta: f32, screen_x: f32, screen_y: f32) {
+        self.camera
+            .zoom_toward_point(scroll_delta, screen_x, screen_y);
+        self.update_camera_uniform();
+    }
+
+    pub fn update_camera_uniform(&self) {
+        let camera_uniform = CameraUniform {
+            view_proj: self.camera.view_projection_matrix().to_cols_array_2d(),
+        };
+
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[camera_uniform]),
+        );
+    }
+
     pub fn draw_quad(&self, quad: &Quad) -> Result<(), RendererError> {
         let output = self
             .surface
