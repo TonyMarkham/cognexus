@@ -43,3 +43,4 @@ Thumbs.db
 
 # Generated frontend artifacts
 apps/desktop/cognexus/frontend/
+frontend/cognexus/wwwroot/wasm/

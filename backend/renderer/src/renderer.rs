@@ -5,6 +5,8 @@ use cognexus_model::drawable::Drawable;
 use cognexus_model::geometry::quad::Quad;
 use common::error::error_location::ErrorLocation;
 use std::panic::Location as PanicLocation;
+use wasm_bindgen::prelude::*;
+use web_sys::HtmlCanvasElement;
 use wgpu::PowerPreference::HighPerformance;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::wgt::TextureViewDescriptor;
@@ -25,6 +27,7 @@ struct CameraUniform {
     view_proj: [[f32; 4]; 4],
 }
 
+#[wasm_bindgen]
 pub struct Renderer {
     surface: Surface<'static>,
     device: Device,
@@ -45,13 +48,21 @@ pub struct Renderer {
     drawables: Vec<Box<dyn Drawable>>,
 }
 
+#[wasm_bindgen]
 impl Renderer {
     pub async fn new(
-        instance: Instance,
-        surface: Surface<'static>,
+        canvas: HtmlCanvasElement,
         width: u32,
         height: u32,
     ) -> Result<Self, RendererError> {
+        let instance = Instance::default();
+        let surface = instance
+            .create_surface(wgpu::SurfaceTarget::Canvas(canvas))
+            .map_err(|e| RendererError::WgpuError {
+                message: format!("Failed to create surface from canvas: {}", e),
+                location: ErrorLocation::from(PanicLocation::caller()),
+            })?;
+
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 power_preference: HighPerformance,
@@ -91,8 +102,8 @@ impl Renderer {
             format: surface_format,
             width,
             height,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: CompositeAlphaMode::PostMultiplied,
+            present_mode: wgpu::PresentMode::AutoNoVsync,
+            alpha_mode: CompositeAlphaMode::Auto,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -245,10 +256,6 @@ impl Renderer {
         );
     }
 
-    pub fn add_quad(&mut self, quad: Quad) {
-        self.drawables.push(Box::new(quad));
-    }
-
     pub fn render(&mut self) -> Result<(), RendererError> {
         let output = self
             .surface
@@ -319,70 +326,25 @@ impl Renderer {
         Ok(())
     }
 
-    // ---------------------------------------------------------------------- //
-
-    pub fn draw_quad(&self, quad: &Quad) -> Result<(), RendererError> {
-        let output = self
-            .surface
-            .get_current_texture()
-            .map_err(|e| RendererError::WgpuError {
-                message: format!("Failed to get texture: {e}"),
-                location: ErrorLocation::from(PanicLocation::caller()),
-            })?;
-
-        let view = output
-            .texture
-            .create_view(&TextureViewDescriptor::default());
-
-        let instance_data = InstanceRaw::from_quad(quad);
-
-        let instance_buffer = self.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&[instance_data]),
-            usage: BufferUsages::VERTEX,
-        });
-
-        let mut encoder = self
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("Render pass"),
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(Color {
-                            r: 0.1,
-                            g: 0.1,
-                            b: 0.1,
-                            a: 1.0,
-                        }),
-                        store: StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-        }
-
-        self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
-
-        println!("Renderer (WGPU context active) drawing quad {quad:?}");
+    pub fn handle_draw_quad_command(&mut self, bytes: &[u8]) -> Result<(), JsValue> {
+        crate::commands::handle_draw_quad(self, bytes)?;
 
         Ok(())
+    }
+
+    pub fn handle_pan_camera_command(&mut self, bytes: &[u8]) -> Result<(), JsValue> {
+        crate::commands::handle_pan_camera(self, bytes)?;
+        Ok(())
+    }
+
+    pub fn handle_zoom_camera_command(&mut self, bytes: &[u8]) -> Result<(), JsValue> {
+        crate::commands::handle_zoom_camera(self, bytes)?;
+        Ok(())
+    }
+}
+
+impl Renderer {
+    pub fn add_quad(&mut self, quad: Quad) {
+        self.drawables.push(Box::new(quad));
     }
 }

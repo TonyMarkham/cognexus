@@ -3,12 +3,20 @@ name = "cognexus-renderer"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 thiserror = { workspace = true }
 wgpu = { workspace = true }
 bytemuck = { workspace = true }
 glam = { workspace = true }
-
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+prost = { workspace = true }
+console_error_panic_hook = { workspace = true }
 
 cognexus-model = { workspace = true }
 common = { workspace = true }
+proto = { workspace = true }

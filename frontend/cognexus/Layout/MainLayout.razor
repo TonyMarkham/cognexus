@@ -1,7 +1,20 @@
-﻿@inherits LayoutComponentBase
-<div class="page">
+@inject CognexusBlazor.Services.RendererService RendererService
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+@inherits LayoutComponentBase
+
+<canvas id="node-graph"
+        width="@_canvasWidth"
+        height="@_canvasHeight"
+        @onwheel="OnWheel"
+        @onmousedown="OnMouseDown"
+        @onmouseup="OnMouseUp"
+        @onmousemove="OnMouseMove">
+</canvas>
+
+<div class="page" @onwheel="OnPageWheel" @onmousedown="OnPageMouseDown" @onmouseup="OnMouseUp" @onmousemove="OnPageMouseMove">
     <div class="sidebar">
-        <NavMenu />
+        <NavMenu/>
     </div>
 
     <main>
@@ -13,4 +26,174 @@
             @Body
         </article>
     </main>
+    
+    <button class="btn btn-primary" @onclick="DrawTestQuad">Draw Test Quad</button>
+    
 </div>
+
+@code {
+    private string? _error;
+    private bool _isPanning = false;
+    private double _lastMouseX;
+    private double _lastMouseY;
+    private int _canvasWidth = 300;
+    private int _canvasHeight = 150;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Console.WriteLine("Getting viewport dimensions...");
+            _canvasWidth = await JSRuntime.InvokeAsync<int>("eval", "window.innerWidth");
+            _canvasHeight = await JSRuntime.InvokeAsync<int>("eval", "window.innerHeight");
+            Console.WriteLine($"Viewport size: {_canvasWidth}x{_canvasHeight}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to get viewport dimensions: {ex.Message}");
+            _error = $"Failed to get viewport dimensions: {ex.Message}";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                Console.WriteLine("Starting renderer initialization...");
+                await RendererService.InitializeAsync("node-graph", _canvasWidth, _canvasHeight);
+                Console.WriteLine("Renderer initialized successfully");
+                await RendererService.RenderAsync();
+                Console.WriteLine("Initial render complete");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Renderer initialization failed: {ex.Message}");
+                _error = $"Failed to initialize renderer: {ex.Message}";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task OnWheel(WheelEventArgs e)
+    {
+        try
+        {
+            var command = new Cognexus.Commands.ZoomCameraCommand
+            {
+                Delta = (float)e.DeltaY,
+                PivotX = (float)e.OffsetX,
+                PivotY = (float)e.OffsetY
+            };
+
+            using var stream = new MemoryStream();
+            using var codedOutput = new Google.Protobuf.CodedOutputStream(stream);
+            command.WriteTo(codedOutput);
+            codedOutput.Flush();
+            var bytes = stream.ToArray();
+
+            await RendererService.HandleZoomCameraCommandAsync(bytes);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Zoom failed: {ex.Message}";
+        }
+    }
+
+    private void OnMouseDown(MouseEventArgs e)
+    {
+        _isPanning = true;
+        _lastMouseX = e.ClientX;
+        _lastMouseY = e.ClientY;
+    }
+
+    private void OnMouseUp(MouseEventArgs e)
+    {
+        _isPanning = false;
+    }
+
+    private async Task OnMouseMove(MouseEventArgs e)
+    {
+        if (!_isPanning) return;
+
+        try
+        {
+            var deltaX = (float)(e.ClientX - _lastMouseX);
+            var deltaY = (float)(e.ClientY - _lastMouseY);
+
+            var command = new Cognexus.Commands.PanCameraCommand
+            {
+                DeltaX = deltaX,
+                DeltaY = deltaY
+            };
+
+            using var stream = new MemoryStream();
+            using var codedOutput = new Google.Protobuf.CodedOutputStream(stream);
+            command.WriteTo(codedOutput);
+            codedOutput.Flush();
+            var bytes = stream.ToArray();
+
+            await RendererService.HandlePanCameraCommandAsync(bytes);
+
+            _lastMouseX = e.ClientX;
+            _lastMouseY = e.ClientY;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Pan failed: {ex.Message}";
+        }
+    }
+
+    private async Task DrawTestQuad()
+    {
+        Console.WriteLine("DrawTestQuad button clicked");
+        try
+        {
+            var command = new Cognexus.Commands.DrawQuadCommand
+            {
+                X = 0,
+                Y = 0,
+                Z = 0,
+                Width = 0.5f,
+                Height = 0.5f,
+                R = 0.8f,
+                G = 0.2f,
+                B = 0.2f,
+                A = 1.0f
+            };
+
+            using var stream = new MemoryStream();
+            using var codedOutput = new Google.Protobuf.CodedOutputStream(stream);
+            command.WriteTo(codedOutput);
+            codedOutput.Flush();
+            var bytes = stream.ToArray();
+
+            await RendererService.HandleDrawQuadCommandAsync(bytes);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to draw quad: {ex.Message}";
+        }
+    }
+
+    private async Task OnPageWheel(WheelEventArgs e)
+    {
+        await OnWheel(e);
+    }
+
+    private void OnPageMouseDown(MouseEventArgs e)
+    {
+        OnMouseDown(e);
+    }
+
+    private async Task OnPageMouseMove(MouseEventArgs e)
+    {
+        await OnMouseMove(e);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+}

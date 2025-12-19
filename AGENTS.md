@@ -124,11 +124,25 @@ cargo tauri build        # Production build
 ./target/release/bundle/macos/Cognexus.app/Contents/MacOS/cognexus-desktop
 ```
 
-**Web (future):**
+**WASM Renderer + Blazor Frontend (required before running Tauri):**
 ```bash
+# Step 1: Build the renderer as WASM
+cargo build --target wasm32-unknown-unknown -p cognexus-renderer
+
+# Step 2: Generate JavaScript bindings (required after each WASM build)
+wasm-bindgen target/wasm32-unknown-unknown/debug/cognexus_renderer.wasm \
+  --out-dir frontend/cognexus/wwwroot/wasm \
+  --target web
+
+# Step 3: Publish Blazor frontend (copies to Tauri frontend directory)
 cd frontend/cognexus
 dotnet publish -c Release
-# Serve wwwroot/ with any static file server
+cd ../..
+```
+
+**Web (future):**
+```bash
+# Follow steps above, then serve wwwroot/ with any static file server
 ```
 
 ## Code Style

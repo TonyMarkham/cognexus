@@ -121,19 +121,22 @@ code {
     width: 100vw;
     height: 100vh;
     z-index: 0;
-    background: transparent; /* dark background like N8N */
 }
 
-#app {
+.page {
     position: relative;
     z-index: 1;
-    pointer-events: none; /* let clicks through to canvas */
 }
 
-#app > * {
-    pointer-events: auto; /* but UI elements should catch clicks */
+main {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
 }
 
-html, body, #app {
-    background-color: transparent !important;
+.content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0;
 }
