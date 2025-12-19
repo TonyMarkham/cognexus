@@ -62,6 +62,14 @@ public class RendererService
         await _renderer.InvokeVoidAsync("handle_zoom_camera_command", bytes);
     }
 
+    public async Task HandleResizeViewportCommandAsync(byte[] bytes)
+    {
+        if (_renderer == null)
+            throw new InvalidOperationException("Renderer not initialized");
+        
+        await _renderer.InvokeVoidAsync("handle_resize_viewport_command", bytes);
+    }
+
     public async Task RenderAsync()
     {
         if (_renderer == null)

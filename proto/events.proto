@@ -6,3 +6,8 @@ message ErrorEvent {
   string message = 1;
   string error_code = 2;  // optional: "INVALID_POSITION", "OUT_OF_BOUNDS", etc.
 }
+
+message RendererInitializedEvent {
+  uint32 width = 1;
+  uint32 height = 2;
+}

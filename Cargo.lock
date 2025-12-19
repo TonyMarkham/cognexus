@@ -387,6 +387,7 @@ dependencies = [
  "common",
  "glam",
  "thiserror 2.0.17",
+ "web-sys",
 ]
 
 [[package]]
@@ -398,6 +399,7 @@ dependencies = [
  "common",
  "console_error_panic_hook",
  "glam",
+ "js-sys",
  "prost",
  "proto",
  "thiserror 2.0.17",

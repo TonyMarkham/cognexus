@@ -1,5 +1,8 @@
+@using Majorsoft.Blazor.Components.Common.JsInterop.GlobalMouseEvents
+@using Majorsoft.Blazor.Components.Common.JsInterop.Resize
 @inject CognexusBlazor.Services.RendererService RendererService
 @inject IJSRuntime JSRuntime
+@inject IResizeHandler ResizeHandler
 @implements IAsyncDisposable
 @inherits LayoutComponentBase
 
@@ -38,21 +41,13 @@
     private double _lastMouseY;
     private int _canvasWidth = 300;
     private int _canvasHeight = 150;
+    private string? _resizeEventId;
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            Console.WriteLine("Getting viewport dimensions...");
-            _canvasWidth = await JSRuntime.InvokeAsync<int>("eval", "window.innerWidth");
-            _canvasHeight = await JSRuntime.InvokeAsync<int>("eval", "window.innerHeight");
-            Console.WriteLine($"Viewport size: {_canvasWidth}x{_canvasHeight}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to get viewport dimensions: {ex.Message}");
-            _error = $"Failed to get viewport dimensions: {ex.Message}";
-        }
+        // Don't fetch viewport dimensions here - let it use defaults (300x150)
+        // We'll get actual dimensions after renderer initializes
+        await Task.CompletedTask;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -61,18 +56,58 @@
         {
             try
             {
-                Console.WriteLine("Starting renderer initialization...");
                 await RendererService.InitializeAsync("node-graph", _canvasWidth, _canvasHeight);
-                Console.WriteLine("Renderer initialized successfully");
+                
+                // Get actual page size and resize immediately
+                var pageSize = await ResizeHandler.GetPageSizeAsync();
+                
+                var resizeCommand = new Cognexus.Commands.ResizeViewportCommand
+                {
+                    Width = (uint)pageSize.Width,
+                    Height = (uint)pageSize.Height
+                };
+                
+                using var stream = new MemoryStream();
+                using var codedOutput = new Google.Protobuf.CodedOutputStream(stream);
+                resizeCommand.WriteTo(codedOutput);
+                codedOutput.Flush();
+                var bytes = stream.ToArray();
+                
+                await RendererService.HandleResizeViewportCommandAsync(bytes);
                 await RendererService.RenderAsync();
-                Console.WriteLine("Initial render complete");
+                
+                // Subscribe to window resize events
+                _resizeEventId = await ResizeHandler.RegisterPageResizeAsync(OnWindowResize);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Renderer initialization failed: {ex.Message}");
                 _error = $"Failed to initialize renderer: {ex.Message}";
                 StateHasChanged();
             }
+        }
+    }
+    
+    private async Task OnWindowResize(ResizeEventArgs args)
+    {
+        try
+        {
+            var command = new Cognexus.Commands.ResizeViewportCommand
+            {
+                Width = (uint)args.Width,
+                Height = (uint)args.Height
+            };
+
+            using var stream = new MemoryStream();
+            using var codedOutput = new Google.Protobuf.CodedOutputStream(stream);
+            command.WriteTo(codedOutput);
+            codedOutput.Flush();
+            var bytes = stream.ToArray();
+
+            await RendererService.HandleResizeViewportCommandAsync(bytes);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Resize failed: {ex.Message}";
         }
     }
 
@@ -125,7 +160,7 @@
             var command = new Cognexus.Commands.PanCameraCommand
             {
                 DeltaX = deltaX,
-                DeltaY = deltaY
+                DeltaY = -deltaY  // Invert Y axis: drag up = move up
             };
 
             using var stream = new MemoryStream();
@@ -147,7 +182,6 @@
 
     private async Task DrawTestQuad()
     {
-        Console.WriteLine("DrawTestQuad button clicked");
         try
         {
             var command = new Cognexus.Commands.DrawQuadCommand
@@ -192,8 +226,11 @@
         await OnMouseMove(e);
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        return ValueTask.CompletedTask;
+        if (!string.IsNullOrEmpty(_resizeEventId))
+        {
+            await ResizeHandler.RemovePageResizeAsync(_resizeEventId);
+        }
     }
 }

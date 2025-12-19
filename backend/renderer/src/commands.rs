@@ -3,7 +3,7 @@ use crate::renderer::Renderer;
 use cognexus_model::geometry::quad::Quad;
 use common::error::error_location::ErrorLocation;
 use prost::Message;
-use proto::{DrawQuadCommand, PanCameraCommand, ZoomCameraCommand};
+use proto::{DrawQuadCommand, PanCameraCommand, ResizeViewportCommand, ZoomCameraCommand};
 
 pub fn handle_draw_quad(renderer: &mut Renderer, bytes: &[u8]) -> Result<(), RendererError> {
     let command = DrawQuadCommand::decode(bytes).map_err(|e| RendererError::CommandError {
@@ -42,6 +42,18 @@ pub fn handle_zoom_camera(renderer: &mut Renderer, bytes: &[u8]) -> Result<(), R
     })?;
 
     renderer.zoom_camera(command.delta, command.pivot_x, command.pivot_y);
+    renderer.render()?;
+
+    Ok(())
+}
+
+pub fn handle_resize_viewport(renderer: &mut Renderer, bytes: &[u8]) -> Result<(), RendererError> {
+    let command = ResizeViewportCommand::decode(bytes).map_err(|e| RendererError::CommandError {
+        message: format!("Failed to decode ResizeViewportCommand: {}", e),
+        location: ErrorLocation::from(std::panic::Location::caller()),
+    })?;
+
+    renderer.resize_viewport(command.width, command.height);
     renderer.render()?;
 
     Ok(())

@@ -71,11 +71,14 @@ impl Camera2D {
         let world_per_pixel_x = width / self.viewport_size.0 as f32;
         let world_per_pixel_y = height / self.viewport_size.1 as f32;
 
+        let world_delta_x = delta_x * world_per_pixel_x;
+        let world_delta_y = delta_y * world_per_pixel_y;
+
         // Convert screen delta to world delta
         // Negative X: dragging right = pan canvas right (camera moves left)
         // Negative Y: dragging down = pan canvas down (camera moves up)
-        self.position.x -= delta_x * world_per_pixel_x;
-        self.position.y -= delta_y * world_per_pixel_y;
+        self.position.x -= world_delta_x;
+        self.position.y -= world_delta_y;
     }
 
     pub fn zoom_toward_point(&mut self, scroll_delta: f32, screen_x: f32, screen_y: f32) {

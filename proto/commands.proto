@@ -24,3 +24,8 @@ message ZoomCameraCommand {
   float pivot_x = 2; // Screen X coordinate to zoom toward
   float pivot_y = 3; // Screen Y coordinate to zoom toward
 }
+
+message ResizeViewportCommand {
+  uint32 width = 1;  // New viewport width in pixels
+  uint32 height = 2; // New viewport height in pixels
+}
