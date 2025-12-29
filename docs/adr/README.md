@@ -62,6 +62,7 @@ The number is permanent and never changes, even if the ADR is superseded.
 
 - [ADR-0001: Camera and Grid Rendering System](0001-camera-and-grid-system.md) - Proposed
 - [ADR-0002: Camera Control Input System](0002-camera-control-input-system.md) - Proposed
+- [ADR-0003: GPU-Accelerated Visual Effects and Rendering](0003-gpu-accelerated-visual-effects-and-rendering.md) - Accepted
 
 ## Resources
 
