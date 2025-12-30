@@ -48,10 +48,11 @@ pub fn handle_zoom_camera(renderer: &mut Renderer, bytes: &[u8]) -> Result<(), R
 }
 
 pub fn handle_resize_viewport(renderer: &mut Renderer, bytes: &[u8]) -> Result<(), RendererError> {
-    let command = ResizeViewportCommand::decode(bytes).map_err(|e| RendererError::CommandError {
-        message: format!("Failed to decode ResizeViewportCommand: {}", e),
-        location: ErrorLocation::from(std::panic::Location::caller()),
-    })?;
+    let command =
+        ResizeViewportCommand::decode(bytes).map_err(|e| RendererError::CommandError {
+            message: format!("Failed to decode ResizeViewportCommand: {}", e),
+            location: ErrorLocation::from(std::panic::Location::caller()),
+        })?;
 
     renderer.resize_viewport(command.width, command.height);
     renderer.render()?;

@@ -386,8 +386,25 @@ version = "0.1.0"
 dependencies = [
  "common",
  "glam",
+ "semver",
  "thiserror 2.0.17",
+ "uuid",
  "web-sys",
+]
+
+[[package]]
+name = "cognexus-nodes"
+version = "0.1.0"
+dependencies = [
+ "cognexus-model",
+ "cognexus-types",
+ "common",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "uuid",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -407,6 +424,20 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "wgpu",
+]
+
+[[package]]
+name = "cognexus-types"
+version = "0.1.0"
+dependencies = [
+ "cognexus-model",
+ "common",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "uuid",
+ "wasm-bindgen",
 ]
 
 [[package]]

@@ -5,6 +5,8 @@ members = [
     "apps/desktop/cognexus",
     "backend/proto",
     "backend/common",
+    "backend/types",
+    "backend/nodes"
 ]
 
 resolver = "3"
@@ -28,8 +30,11 @@ web-sys = { version = "0.3.83", features = ["HtmlCanvasElement", "Window", "Docu
 js-sys = { version = "0.3" }
 wasm-bindgen-futures = { version = "0.4" }
 console_error_panic_hook = { version = "0.1.7" }
+uuid = { version = "1.19.0", features = ["v4", "serde"] }
+semver = { version = "1.0.27" }
 
 proto = { path = "backend/proto" }
 cognexus-renderer = { path = "backend/renderer" }
 cognexus-model = { path = "backend/model" }
+cognexus-types = { path = "backend/types" }
 common = {path = "backend/common"}

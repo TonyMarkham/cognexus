@@ -1,0 +1,19 @@
+[package]
+name = "cognexus-nodes"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+thiserror = { workspace = true }
+cognexus-model = { workspace = true }
+uuid = { workspace = true }
+semver = { workspace = true }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true}
+
+common = { workspace = true }
+cognexus-types = { workspace = true }

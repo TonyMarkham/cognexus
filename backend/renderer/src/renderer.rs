@@ -356,18 +356,18 @@ impl Renderer {
     pub fn resize_viewport(&mut self, width: u32, height: u32) {
         // Update stored size
         self.size = (width, height);
-        
+
         // Reconfigure surface
         self.config.width = width;
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
-        
+
         // Update camera viewport
         self.camera = Camera2DBuilder::default()
             .with_viewport(width, height)
             .build()
             .expect("Failed to rebuild camera with new viewport");
-        
+
         self.update_camera_uniform();
     }
 }

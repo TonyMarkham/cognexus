@@ -6,6 +6,8 @@ edition = "2024"
 [dependencies]
 glam = { workspace = true }
 thiserror = { workspace = true }
+uuid = { workspace = true }
+semver = { workspace = true }
 web-sys = { workspace = true }
 
 common = { workspace = true }
