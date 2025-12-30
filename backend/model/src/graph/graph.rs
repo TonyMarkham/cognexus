@@ -1,5 +1,7 @@
 use crate::error::ModelError;
-use crate::graph::{Edge, EdgeBuilder, Node, NodeBuilder, DataTypeRegistry, NodeDefinitionRegistry};
+use crate::graph::{
+    DataTypeRegistry, Edge, EdgeBuilder, Node, NodeBuilder, NodeDefinitionRegistry,
+};
 
 use common::error::error_location::ErrorLocation;
 

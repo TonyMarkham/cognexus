@@ -1,0 +1,45 @@
+package cognexus:plugin;
+
+interface types {
+    record type-info {
+        id: string,
+        name: string,
+        description: string,
+        version: string,
+    }
+
+    list-types: func() -> list<type-info>;
+}
+
+interface nodes {
+    record port-spec {
+        id: string,
+        name: string,
+        direction: direction,
+        data-type-id: string,
+    }
+
+    enum direction {
+        input,
+        output,
+    }
+
+    record node-info {
+        id: string,
+        name: string,
+        description: string,
+        version: string,
+        input-ports: list<port-spec>,
+        output-ports: list<port-spec>,
+    }
+
+    list-nodes: func() -> list<node-info>;
+}
+
+world types-plugin {
+    export types;
+}
+
+world nodes-plugin {
+    export nodes;
+}

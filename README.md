@@ -42,21 +42,28 @@ A visual workflow automation tool with a WebGL-rendered node graph editor. Built
 - **Node.js** (for Tauri CLI)
 - **Tauri CLI**: `cargo install tauri-cli@^2.0.0`
 - **wasm-bindgen-cli**: `cargo install wasm-bindgen-cli`
-- **WASM target**: `rustup target add wasm32-unknown-unknown`
+- **cargo-component**: `cargo install cargo-component`
+- **WASM targets**: 
+  - `rustup target add wasm32-unknown-unknown` (for renderer)
+  - `rustup target add wasm32-wasip1` (for plugins)
 
 ## Project Structure
 
 ```
 cognexus/
+├── wit/                # WebAssembly Interface Type definitions
+│   └── plugin.wit      # Plugin interface for types and nodes
 ├── backend/
 │   ├── model/          # Node graph data structures & traits
-│   ├── types/          # First-party data types (compiled to WASM)
-│   ├── nodes/          # First-party nodes (compiled to WASM)
-│   ├── renderer/       # WGPU rendering engine
+│   ├── types/          # First-party data types (WASM component)
+│   ├── nodes/          # First-party nodes (WASM component)
+│   ├── renderer/       # WGPU rendering engine (WASM for browser)
 │   ├── proto/          # Protobuf message definitions
 │   └── common/         # Shared utilities
 ├── frontend/
 │   └── cognexus/       # Blazor WebAssembly UI
+├── cli/
+│   └── inspect/        # CLI tool for inspecting plugin components
 └── apps/
     └── desktop/
         └── cognexus/   # Tauri desktop app
@@ -102,21 +109,23 @@ cd ../..
 cargo tauri dev
 ```
 
-### Building Plugin WASM Modules
+### Building Plugin WASM Components
 
-First-party types and nodes are compiled as separate WASM modules:
+First-party types and nodes are compiled as WASM Component Model components using `cargo-component`:
 
 ```bash
-# Build types WASM
-cargo build --target wasm32-unknown-unknown -p cognexus-types
+# Build types component
+cargo component build -p cognexus-types
 
-# Build nodes WASM
-cargo build --target wasm32-unknown-unknown -p cognexus-nodes
+# Build nodes component
+cargo component build -p cognexus-nodes
 ```
 
 Output files:
-- `target/wasm32-unknown-unknown/debug/cognexus_types.wasm`
-- `target/wasm32-unknown-unknown/debug/cognexus_nodes.wasm`
+- `target/wasm32-wasip1/debug/cognexus_types.wasm`
+- `target/wasm32-wasip1/debug/cognexus_nodes.wasm`
+
+These are **WASM Components** (not raw WASM modules), implementing the WIT interfaces defined in `wit/plugin.wit`.
 
 ### Production Build
 
@@ -163,6 +172,65 @@ Hot-reloads on Rust and Blazor changes.
 ./target/release/bundle/appimage/cognexus.AppImage
 ```
 
+## Inspecting Plugin Components
+
+The `cognexus-inspect` CLI tool allows you to interrogate WASM plugin components and discover their metadata.
+
+### Usage
+
+```bash
+# Inspect a types plugin
+cargo run -p cognexus-inspect -- <path-to-wasm> --kind types
+
+# Inspect a nodes plugin
+cargo run -p cognexus-inspect -- <path-to-wasm> --kind nodes
+```
+
+### Examples
+
+**Inspecting types:**
+```bash
+cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_types.wasm --kind types
+```
+
+Output:
+```
+Found 1 data type(s):
+  - Signal (989bcbb2-b1a1-4f3f-be15-22ada278aedc)
+    Description: A flow control signal with no data payload
+    Version: 0.1.0
+```
+
+**Inspecting nodes:**
+```bash
+cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_nodes.wasm --kind nodes
+```
+
+Output:
+```
+Found 2 node(s):
+  - Start (40ebe0be-d2db-4eed-80f3-91267352ee42)
+    Description: Initiates workflow execution
+    Version: 0.1.0
+    Input ports: 0
+    Output ports: 1
+  - End (e7a20e26-27ce-4d49-9759-50db835d46e6)
+    Description: Terminates workflow execution
+    Version: 0.1.0
+    Input ports: 1
+    Output ports: 0
+```
+
+### What the CLI Does
+
+The inspect tool:
+1. Loads the WASM component using wasmtime's Component Model support
+2. Instantiates the component with WASI
+3. Calls the appropriate discovery function (`list-types` or `list-nodes`)
+4. Displays metadata including UUIDs, names, descriptions, versions, and port information
+
+This demonstrates the plugin discovery mechanism that will be used by the desktop app to load plugins at runtime.
+
 ## Development Workflow
 
 ### Making Changes to the Renderer
@@ -185,12 +253,24 @@ cargo tauri dev
 # Just save your changes and Tauri will rebuild
 ```
 
+### Adding New Data Types
+```bash
+# 1. Edit backend/types/src/
+# 2. Rebuild types component
+cargo component build -p cognexus-types
+# 3. Inspect the component to verify changes
+cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_types.wasm --kind types
+# 4. Type components will be loaded at runtime (TODO: implement loader)
+```
+
 ### Adding New Node Types
 ```bash
 # 1. Edit backend/nodes/src/
-# 2. Rebuild node WASM
-cargo build --target wasm32-unknown-unknown -p cognexus-nodes
-# 3. Node modules are loaded at runtime (TODO: implement loader)
+# 2. Rebuild node component
+cargo component build -p cognexus-nodes
+# 3. Inspect the component to verify changes
+cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_nodes.wasm --kind nodes
+# 4. Node components will be loaded at runtime (TODO: implement loader)
 ```
 
 ## Plugin Development
@@ -221,12 +301,40 @@ impl NodeDefinition for MyCustomNode {
 }
 ```
 
-2. Compile to WASM:
-```bash
-cargo build --target wasm32-unknown-unknown -p your-node-crate
+2. Add WIT component metadata to your `Cargo.toml`:
+```toml
+[package.metadata.component]
+package = "cognexus:plugin"
+target = { path = "../../wit", world = "nodes-plugin" }
 ```
 
-3. The runtime will load your WASM module (loader implementation pending).
+3. Implement the Component Model guest trait in your crate's `lib.rs`:
+```rust
+mod bindings;
+use bindings::exports::cognexus::plugin::nodes::Guest;
+
+struct Component;
+
+impl Guest for Component {
+    fn list_nodes() -> Vec<NodeInfo> {
+        // Return metadata for your nodes
+    }
+}
+
+bindings::export!(Component with_types_in bindings);
+```
+
+4. Compile to WASM Component:
+```bash
+cargo component build -p your-node-crate
+```
+
+5. Inspect to verify:
+```bash
+cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/your_node_crate.wasm --kind nodes
+```
+
+6. The runtime will load your component at runtime (loader implementation in progress).
 
 ## Testing
 
