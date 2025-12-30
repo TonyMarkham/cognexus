@@ -1,6 +1,6 @@
 # Current State - Cognexus Development
 
-**Last Updated:** December 30, 2024
+**Last Updated:** December 30, 2024 (Evening Session)
 
 ---
 
@@ -31,25 +31,55 @@
 **Types (`backend/types/`):**
 - `SignalType` - flow control signal with no data payload
 - `TypeError` - type-specific error handling with location tracking
-- Compiled to WASM ✅ (`cognexus_types.wasm`)
-- Configured as both library and WASM module (`crate-type = ["lib", "cdylib"]`)
+- Compiled to WASM Component ✅ (`cognexus_types.wasm`)
+- Implements `types-plugin` world from WIT definition
+- Exports `list-types()` function for runtime discovery
 
 **Nodes (`backend/nodes/`):**
 - `StartNode` - workflow initiator (0 inputs, 1 Signal output)
 - `EndNode` - workflow terminator (1 Signal input, 0 outputs)
 - `NodeError` - node-specific error handling with location tracking
-- Compiled to WASM ✅ (`cognexus_nodes.wasm`)
-- Configured as WASM module (`crate-type = ["cdylib"]`)
+- Compiled to WASM Component ✅ (`cognexus_nodes.wasm`)
+- Implements `nodes-plugin` world from WIT definition
+- Exports `list-nodes()` function for runtime discovery
 
-### ✅ WASM Build System
-- Types and nodes successfully compile to `.wasm` files
-- UUID configured with `js` feature for WASM/JavaScript compatibility
-- Renderer compiles to WASM for Blazor integration
-- All build steps documented in comprehensive README.md
-- wasm-bindgen integration for JavaScript interop
+### ✅ WASM Component Model System ⭐ **NEW**
+**WIT Interface Definitions (`wit/plugin.wit`):**
+- `types-plugin` world for data type components
+- `nodes-plugin` world for node components
+- Type-safe interfaces using WebAssembly Interface Types
+- Separate worlds allow clean component separation
+
+**Component Build System:**
+- `cargo-component` integration for building WASM components
+- Components target `wasm32-wasip1` (not `wasm32-unknown-unknown`)
+- Generated bindings via `wit-bindgen`
+- Components include full metadata (UUIDs, names, descriptions, versions, port specs)
+
+**CLI Inspection Tool (`cli/inspect/`):**
+- `cognexus-inspect` binary for interrogating plugin components
+- Loads components using wasmtime Component Model API
+- Calls `list-types()` or `list-nodes()` to extract metadata
+- Supports both types and nodes via `--kind` flag
+- Demonstrates plugin discovery mechanism for desktop app
+
+### ✅ WASM Build Systems (Dual Purpose)
+**Renderer WASM (for browser):**
+- Compiles to `wasm32-unknown-unknown` target
+- Uses wasm-bindgen for JavaScript interop
+- Bundled into Blazor frontend as static asset
+
+**Plugin WASM Components (for runtime loading):**
+- Compile to `wasm32-wasip1` target using `cargo-component`
+- Use Component Model for type-safe boundaries
+- Loaded dynamically at runtime (not bundled)
+- UUID configured with `js` feature for WASM compatibility
 
 ### ✅ Architecture Decisions Locked In
 - **WASM-first:** All nodes (first-party and plugins) compile to WASM for true dogfooding
+- **Component Model:** Plugins use WASM Component Model, not raw WASM modules ⭐ **NEW**
+- **WIT-defined interfaces:** Type-safe plugin boundaries defined in WIT files ⭐ **NEW**
+- **Separate worlds:** Types and nodes have independent component worlds ⭐ **NEW**
 - **Associated error types:** Each crate defines its own errors for proper encapsulation
 - **UUID-based references:** Nodes, ports, edges identified by UUIDs for flexibility
 - **Validation at boundaries:** Graph validates node existence when adding edges
@@ -57,7 +87,11 @@
 - **Trait splitting:** Registry-safe traits (`NodeDefinitionInfo`) separate from execution traits
 
 ### ✅ Documentation
-- Comprehensive README.md with build instructions
+- Comprehensive README.md with build instructions ⭐ **UPDATED**
+  - Component Model build steps with `cargo-component`
+  - CLI inspection tool usage and examples
+  - Plugin development guide with WIT integration
+  - Separate sections for adding types and nodes
 - AGENTS.md with architectural decisions and development philosophy
 - This CURRENT_STATE.md tracking progress
 
@@ -67,40 +101,47 @@
 
 ### Critical Path (Must Have):
 
-#### 1. **WASM Runtime & Loader** ⭐ **NEXT BIG TASK** ⭐
-**Status:** Not started (0%)  
-**Blocking:** Everything else
+#### 1. **WASM Component Model Runtime & Discovery** ⭐ **IN PROGRESS** ⭐
+**Status:** 50% complete  
+**Blocking:** Plugin loading at runtime
 
-**A. CLI Tool for WASM Interrogation** (`cognexus inspect`)
-- [ ] Create `cognexus-cli` crate with inspect command
-- [ ] Load WASM module using wasmtime/wasmer
-- [ ] Call registration function to discover types/nodes
-- [ ] Extract metadata by calling trait methods:
-  - `type_id()`, `name()`, `description()` for data types
-  - `definition_id()`, `name()`, `input_port_specs()`, `output_port_specs()` for nodes
-- [ ] Output discovered metadata (JSON or human-readable)
-- [ ] Optionally generate signed metadata cache files
+**A. CLI Tool for Component Interrogation** (`cognexus inspect`) ✅ **COMPLETE**
+- [x] Create `cli/inspect/` crate with command-line tool
+- [x] Load WASM components using wasmtime Component Model API
+- [x] Generate WIT bindings for both `types-plugin` and `nodes-plugin` worlds
+- [x] Call `list-types()` and `list-nodes()` functions across component boundary
+- [x] Extract metadata: UUIDs, names, descriptions, versions, port specs
+- [x] Output human-readable discovery information
+- [x] Support `--kind` flag to specify component type (types or nodes)
+- [ ] Optionally generate signed metadata cache files (deferred)
   - Include WASM hash for tamper detection
   - Binary format (not text-based for security)
 
-**Why needed first:** Plugin authors use this to discover first-party type/node UUIDs. Third-party plugins can also be interrogated the same way. The WASM itself is the single source of truth.
+**Why critical:** Plugin authors use this to discover first-party type/node UUIDs. Validates that the Component Model architecture works end-to-end before integrating into desktop app.
 
-**Example usage:**
+**Current usage:**
 ```bash
-# Discover first-party types
-$ cognexus inspect cognexus_types.wasm
-Found data types:
+# Discover types
+$ cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_types.wasm --kind types
+Found 1 data type(s):
   - Signal (989bcbb2-b1a1-4f3f-be15-22ada278aedc)
     Description: A flow control signal with no data payload
+    Version: 0.1.0
 
-# Discover nodes and their ports
-$ cognexus inspect cognexus_nodes.wasm
-Found node definitions:
+# Discover nodes
+$ cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_nodes.wasm --kind nodes
+Found 2 node(s):
   - Start (40ebe0be-d2db-4eed-80f3-91267352ee42)
-    Output ports: signal → Signal type
+    Description: Initiates workflow execution
+    Input ports: 0
+    Output ports: 1
+  - End (e7a20e26-27ce-4d49-9759-50db835d46e6)
+    Description: Terminates workflow execution
+    Input ports: 1
+    Output ports: 0
 ```
 
-**B. Desktop App WASM Loader** (`apps/desktop/cognexus/`)
+**B. Desktop App Plugin Discovery & Loader** (`apps/desktop/cognexus/`) ❌ **NOT STARTED**
 - [ ] Add `wasmtime` or `wasmer` dependency to Cargo.toml
 - [ ] Implement lazy-loading discovery system
   - Scan metadata cache files at startup (cheap)
@@ -134,7 +175,21 @@ Found node definitions:
 - **Registration function pattern:** Each WASM exports `register_plugin()` that registers all its types/nodes
 - **Trait methods as interface:** UUIDs extracted by calling `type_id()` and other trait methods
 
-#### 2. **DataTypeRegistry** ✅ **COMPLETE**
+#### 2. **Component Model Integration Testing** ⭐ **COMPLETE** ⭐
+**Status:** Complete (100%)
+
+Everything tested and validated:
+- [x] WIT interface definitions compile correctly
+- [x] Components build with `cargo-component`
+- [x] Bindings generate properly for both worlds
+- [x] Components instantiate in wasmtime
+- [x] Function calls work across component boundary
+- [x] Metadata extraction returns correct data
+- [x] Both types and nodes work independently
+
+**Key validation:** The entire Component Model architecture works end-to-end from WIT definition → component build → runtime loading → function invocation → data retrieval.
+
+#### 3. **DataTypeRegistry** ✅ **COMPLETE**
 **Status:** Complete (100%)  
 
 - [x] Create registry parallel to `NodeDefinitionRegistry`
@@ -146,7 +201,7 @@ Found node definitions:
 
 **Why needed:** Nodes reference data types by UUID. We need a way to look them up at runtime for validation and execution.
 
-#### 3. **Port Validation in Graph** ✅ **COMPLETE**
+#### 4. **Port Validation in Graph** ✅ **COMPLETE**
 **Status:** Complete (100%)  
 **Depends on:** ~~DataTypeRegistry~~ (done), WASM runtime
 
@@ -162,7 +217,7 @@ Found node definitions:
 
 **Current state:** Full validation implemented. Both methods now require registry references.
 
-#### 4. **Graph Query Methods**
+#### 5. **Graph Query Methods**
 **Status:** Basic getters only (25%)
 
 - [ ] `find_node_by_id(&self, id: Uuid) -> Option<&Node>`
@@ -179,7 +234,7 @@ Found node definitions:
 
 ### Important (Should Have):
 
-#### 5. **Serialization/Deserialization**
+#### 6. **Serialization/Deserialization**
 **Status:** Builders support it, but no format implementation (10%)
 
 - [ ] Add `serde::Serialize` + `serde::Deserialize` to Graph/Node/Edge/Port
@@ -192,7 +247,7 @@ Found node definitions:
 
 **Why needed:** Users need to save and load their workflows.
 
-#### 6. **More Data Types**
+#### 7. **More Data Types**
 **Status:** Only Signal implemented (10%)
 
 **Primitive types:**
@@ -209,7 +264,7 @@ Found node definitions:
 
 **Why needed:** Workflows need to pass actual data, not just signals.
 
-#### 7. **More Node Types**
+#### 8. **More Node Types**
 **Status:** Only Start/End implemented (10%)
 
 **Math nodes:**
@@ -232,7 +287,7 @@ Found node definitions:
 
 **Why needed:** Build actual useful workflows.
 
-#### 8. **Execution Engine**
+#### 9. **Execution Engine**
 **Status:** Not started (0%)  
 **Depends on:** WASM runtime, more types, more nodes
 
@@ -264,7 +319,7 @@ Found node definitions:
 
 ### Nice To Have (Later):
 
-#### 9. **Advanced Features**
+#### 10. **Advanced Features**
 - [ ] Undo/redo system for graph editing
 - [ ] Graph validation utilities
   - Detect cycles
@@ -276,7 +331,7 @@ Found node definitions:
 - [ ] Graph diffing (show changes between versions)
 - [ ] Graph templates/snippets
 
-#### 10. **Developer Experience**
+#### 11. **Developer Experience**
 - [ ] Plugin template/scaffolding CLI tool
   - `cognexus new plugin MyPlugin`
   - Generates boilerplate for node/type crates
@@ -289,7 +344,7 @@ Found node definitions:
   - File I/O nodes
   - JSON parsing nodes
 
-#### 11. **UI Integration**
+#### 12. **UI Integration**
 **Current state:** Blazor UI exists but doesn't use graph model yet
 
 - [ ] Blazor components for node graph editor
@@ -306,75 +361,84 @@ Found node definitions:
 
 ## 📊 Progress Estimate
 
-### Foundation: 70% Complete ✅
+### Foundation: 90% Complete ✅ **MAJOR PROGRESS**
 - ✅ Data model: 100%
 - ✅ Plugin SDK: 100%
+- ✅ Component Model system: 100% ⭐ **NEW**
+- ✅ WIT interfaces: 100% ⭐ **NEW**
 - ⚠️ First-party types/nodes: 30% (Signal, Start, End only)
 - ✅ Build system: 100%
-- ✅ Documentation: 80%
+- ✅ Documentation: 95% ⭐ **UPDATED**
 
-### Runtime: 20% Complete ⚠️
-- ❌ WASM loader: 0% ← **BLOCKING EVERYTHING**
-- ✅ Registries: 100% (Both registries complete, ready for WASM loader)
+### Runtime: 50% Complete ⚠️ **SIGNIFICANT PROGRESS**
+- ✅ CLI inspection tool: 100% ⭐ **COMPLETE**
+- ⚠️ Desktop app plugin discovery: 0% ← **NEXT TASK**
+- ✅ Registries: 100% (Both registries complete, ready for plugin loading)
 - ❌ Execution engine: 0%
 - ❌ Serialization: 10% (structures support it, no format implementation)
 
-### Overall Progress: ~40% Complete
+### Overall Progress: ~60% Complete ⚡ **Up from 40%**
 
-**Next milestone:** WASM runtime functional (would bring overall to ~55%)
+**Current milestone:** Component Model system validated end-to-end ✅
+**Next milestone:** Desktop app plugin discovery and loading (would bring overall to ~70%)
 
 ---
 
 ## 🎯 Recommended Next Steps (Priority Order)
 
-### Phase 1: Make Plugins Real (Weeks 1-2)
-1. **Build WASM runtime & loader** ⭐ Most critical ⭐ **READY TO START**
-   - Research wasmtime vs wasmer
-   - Implement basic module loading
-   - Test with first-party nodes/types
-   - Populate registries from WASM modules
-   - This unblocks everything else
-   - **Registries are ready and waiting for the loader**
+### Phase 1: Complete Plugin System (Week 1)
+1. ~~**Build CLI inspection tool**~~ ✅ **COMPLETE** (Dec 30, 2024)
+   - CLI tool validates Component Model architecture
+   - Proves end-to-end plugin discovery works
+   - Tool available for plugin authors
 
-2. ~~**Create DataTypeRegistry**~~ ✅ **COMPLETE**
-   - Mirror NodeDefinitionRegistry pattern
-   - Wire into WASM loader
+2. **Build desktop app plugin discovery system** ⭐ **NEXT IMMEDIATE TASK** ⭐
+   - Integrate wasmtime Component Model into Tauri app
+   - Implement plugin directory structure:
+     - `builtin/` for first-party components (bundled with app)
+     - `plugins/` for third-party components (user-installed)
+   - Scan for `.wasm` component files at startup
+   - Load components lazily on-demand
+   - Populate `DataTypeRegistry` and `NodeDefinitionRegistry` from components
+   - Handle both types-plugin and nodes-plugin worlds
+   - This completes the plugin system foundation
 
-3. ~~**Complete port validation**~~ ✅ **COMPLETE**
-   - Use registries to validate edges fully
+3. ~~**Create DataTypeRegistry**~~ ✅ **COMPLETE**
+4. ~~**Complete port validation**~~ ✅ **COMPLETE**
+5. ~~**Build Component Model system**~~ ✅ **COMPLETE**
 
-### Phase 2: Expand Capabilities (Weeks 3-4)
-4. **Add more data types**
+### Phase 2: Expand Capabilities (Weeks 2-3)
+6. **Add more data types**
    - U32, String, Bool at minimum
    - Enables real data flow
 
-5. **Add more node types**
+7. **Add more node types**
    - Math operations (Add, Multiply, etc.)
    - Basic logic (If, Compare)
    - Enables useful workflows
 
-6. **Implement graph serialization**
+8. **Implement graph serialization**
    - JSON format
    - Save/load workflows
 
-### Phase 3: Make It Work (Weeks 5-6)
-7. **Build execution engine**
+### Phase 3: Make It Work (Weeks 4-5)
+9. **Build execution engine**
    - Topological sort
    - Value propagation
    - Actually run workflows
 
-8. **Wire UI to graph model**
+10. **Wire UI to graph model**
    - Display nodes/edges on canvas
    - Create/delete nodes
    - Connect edges
 
-### Phase 4: Polish (Week 7+)
-9. **Developer experience**
+### Phase 4: Polish (Week 6+)
+11. **Developer experience**
    - Plugin templates
    - Documentation
    - Examples
 
-10. **Advanced features**
+12. **Advanced features**
     - Undo/redo
     - Validation
     - Hot reload
@@ -405,12 +469,13 @@ None yet - we've been building things properly from the start.
 
 ## 🐛 Known Issues
 
-1. **Types/Nodes WASM not loaded:** Built but unused (by design, waiting for runtime)
-2. ~~**Port validation incomplete:**~~ ✅ Fixed - full validation implemented
-3. ~~**No type registry:**~~ ✅ Fixed - DataTypeRegistry complete
-4. **Limited type library:** Only Signal type implemented
-5. **Limited node library:** Only Start/End nodes implemented
-6. **Registries not instantiated:** No code creates/populates registries yet (waiting for WASM loader)
+1. **Plugin components not loaded by desktop app:** Components built and CLI can inspect them, but desktop app doesn't load them yet (next task)
+2. ~~**Types/Nodes WASM not loaded:**~~ ✅ Fixed - CLI tool loads and interrogates them
+3. ~~**Port validation incomplete:**~~ ✅ Fixed - full validation implemented
+4. ~~**No type registry:**~~ ✅ Fixed - DataTypeRegistry complete
+5. **Limited type library:** Only Signal type implemented
+6. **Limited node library:** Only Start/End nodes implemented
+7. **Registries not populated at runtime:** Desktop app needs to scan for components and populate registries (next task)
 
 ---
 

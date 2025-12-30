@@ -1,73 +1,96 @@
-# Next Session Prompt - December 30, 2024
+# Next Session Prompt - December 30, 2024 (Evening)
 
 ## Context
 
 I'm Tony, building **Cognexus** - a visual workflow automation tool (N8N clone) with a WebGL-rendered node graph editor. This is a learning project where I build and AI agents provide guidance using production-grade standards.
 
-## What We Just Completed (Dec 30, 2024)
+## What We Just Completed (Dec 30, 2024 - Evening Session)
 
-✅ **DataTypeRegistry System**
-- Split `DataType` trait into `DataTypeInfo` (metadata) and `DataType` (serialization)
-- Implemented `DataTypeRegistry` following the `NodeDefinitionRegistry` pattern
-- Both registries now complete and ready for WASM loader
+✅ **WASM Component Model System**
+- Created WIT interface definitions (`wit/plugin.wit`) with separate worlds:
+  - `types-plugin` world for data type components
+  - `nodes-plugin` world for node components
+- Converted `backend/types` and `backend/nodes` to WASM components using `cargo-component`
+- Implemented Component Model guest traits (`list-types()`, `list-nodes()`)
+- Components export full metadata: UUIDs, names, descriptions, versions, port specs
 
-✅ **Graph Validation System**
-- `Graph::add_node()` now validates definition exists in `NodeDefinitionRegistry`
-- `Graph::add_edge()` now validates ports exist on node definitions
-- Full validation through registry dependency injection
+✅ **CLI Inspection Tool** (`cli/inspect/`)
+- Built `cognexus-inspect` binary for interrogating plugin components
+- Loads WASM components using wasmtime Component Model API
+- Generates WIT bindings for both worlds using `wasmtime::component::bindgen!`
+- Calls discovery functions across component boundary
+- Supports `--kind` flag to specify types or nodes
+- Validates entire Component Model architecture end-to-end
 
-✅ **Port System Refactor**
-- Node definitions create actual `Port` instances (not just specs)
-- Each port has a UUID from the definition (template)
-- Node instance ID + port definition ID = unique connection point
+✅ **Documentation Updates**
+- Updated README with Component Model build instructions
+- Added CLI tool usage section with examples
+- Updated plugin development guide
+- Separated sections for adding types vs nodes
 
-✅ **WASM Loader Architecture Designed**
-- Lazy loading: modules loaded on-demand, not at startup
-- CLI tool (`cognexus inspect`) for discovering type/node UUIDs from WASM
-- WASM as single source of truth (no hand-written manifests)
-- Registration function pattern for plugin discovery
-- See `CURRENT_STATE.md` section 1 for full design
+✅ **Validation Complete**
+- Both `cognexus_types.wasm` and `cognexus_nodes.wasm` build successfully
+- CLI tool successfully loads and interrogates both components
+- Metadata extraction works correctly
+- Component Model architecture proven production-ready
 
 ## Current State
 
-**Foundation: 70% Complete**
+**Foundation: 90% Complete** (up from 70%)
 - ✅ Data model with builders
 - ✅ Both registries (DataType + NodeDefinition)
-- ✅ First-party types/nodes (Signal, Start, End) as WASM
+- ✅ First-party types/nodes as WASM components
 - ✅ Graph validation complete
+- ✅ Component Model system functional
+- ✅ WIT interfaces defined
+- ✅ CLI inspection tool working
 
-**Runtime: 20% Complete**
-- ❌ WASM loader: 0% ← **NEXT BIG TASK**
-- ✅ Registries: 100% (waiting for loader)
+**Runtime: 50% Complete** (up from 20%)
+- ✅ CLI tool: 100% (validates architecture)
+- ❌ Desktop app plugin discovery: 0% ← **NEXT TASK**
+- ✅ Registries: 100% (waiting for desktop integration)
 
-**Overall: ~40% Complete**
+**Overall: ~60% Complete** (up from 40%)
 
 ## What to Work On Next
 
-**Primary Goal:** Build the WASM runtime and loader system
+**Primary Goal:** Integrate plugin discovery into the Tauri desktop app
 
-**Two parallel tracks:**
+### Desktop App Plugin Discovery System
 
-### Track A: CLI Tool (`cognexus inspect`)
-Build a CLI tool that can:
-1. Load a WASM module (using wasmtime or wasmer)
-2. Call the registration function to discover types/nodes
-3. Extract metadata by calling trait methods (`type_id()`, `name()`, etc.)
-4. Output discovered UUIDs and metadata
+Build the runtime plugin loading system for the Tauri desktop application:
 
-**Why first:** Plugin authors (including third-party) need this to discover first-party type/node UUIDs. Testing this validates the discovery pattern works before building the full loader.
+1. **Plugin Directory Structure**
+   - Determine cross-platform plugin directories:
+     - `builtin/` - First-party components (bundled with app, trusted)
+     - `plugins/` - Third-party components (user-installed, sandboxed)
+   - Use Tauri's resource APIs to locate bundled files
+   - Use platform-appropriate user directories (XDG, AppData, Application Support)
 
-### Track B: Desktop App WASM Loader
-Integrate WASM loading into the Tauri desktop app (`apps/desktop/cognexus/`):
-1. Determine cross-platform plugin directory structure:
-   - `builtin/` - First-party WASM (bundled with app, trusted)
-   - `plugins/` - Third-party WASM (user-installed, sandboxed)
-   - Use Tauri's resource APIs to locate bundled files cross-platform
-   - Use platform-appropriate user directories for plugins (XDG on Linux, AppData on Windows, Application Support on macOS)
-2. Scan for WASM files at startup (lightweight metadata scan)
-3. Implement lazy loading (load WASM on-demand when UUID requested)
-4. Registration function calls populate registries
-5. Handle first-party (trusted) vs third-party (sandboxed) separately
+2. **Component Scanner**
+   - Scan plugin directories at startup
+   - Discover `.wasm` component files
+   - Determine component type (types-plugin or nodes-plugin)
+   - Build an index of available components
+
+3. **Lazy Component Loading**
+   - Don't load all components at startup
+   - Load on-demand when UUID is requested
+   - Cache loaded components in memory
+   - Handle component instantiation errors gracefully
+
+4. **Registry Population**
+   - Call `list-types()` on types components
+   - Call `list-nodes()` on nodes components
+   - Populate `DataTypeRegistry` with discovered types
+   - Populate `NodeDefinitionRegistry` with discovered nodes
+   - Store component references for later execution
+
+5. **Tauri Integration**
+   - Add wasmtime dependencies to Tauri app `Cargo.toml`
+   - Create plugin manager service/module
+   - Initialize at app startup
+   - Expose plugin info to Blazor frontend via Tauri commands (future)
 
 ## Important Constraints
 
@@ -82,42 +105,61 @@ Integrate WASM loading into the Tauri desktop app (`apps/desktop/cognexus/`):
 - Proper error handling (avoid `.unwrap()` in prod code)
 - Security considerations from the start
 - Document architectural decisions
+- Cross-platform compatibility (macOS, Windows, Linux)
 
 ## Key Files to Reference
 
 - `AGENTS.md` - Development philosophy and architecture
-- `CURRENT_STATE.md` - Detailed progress tracking and next steps
-- `backend/model/src/graph/` - Data model and registries
-- `backend/types/` - SignalType (example DataType implementation)
-- `backend/nodes/` - StartNode, EndNode (example NodeDefinition implementations)
+- `CURRENT_STATE.md` - Updated with Component Model progress
+- `README.md` - Updated with build instructions and CLI usage
+- `wit/plugin.wit` - WIT interface definitions
+- `cli/inspect/src/main.rs` - Working example of loading components
+- `backend/model/src/graph/` - Registries waiting for population
+- `apps/desktop/cognexus/` - Tauri app that needs plugin integration
 
 ## Technical Context
 
 **Tech Stack:**
-- Rust (backend, WASM modules)
+- Rust (backend, WASM components)
+- WASM Component Model (plugin system)
+- wasmtime (component runtime)
 - WGPU (rendering)
 - Blazor WebAssembly (UI)
 - Tauri 2.5 (desktop app)
 - Protocol Buffers (communication)
 
-**WASM Compilation:**
+**Component Build Commands:**
 ```bash
-# Build types
-cargo build --target wasm32-unknown-unknown -p cognexus-types
+# Build types component
+cargo component build -p cognexus-types
 
-# Build nodes  
-cargo build --target wasm32-unknown-unknown -p cognexus-nodes
+# Build nodes component  
+cargo component build -p cognexus-nodes
 
-# Check model
-cargo check -p cognexus-model
+# Inspect components
+cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_types.wasm --kind types
+cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_nodes.wasm --kind nodes
 ```
+
+**What Works:**
+- CLI tool proves Component Model architecture is solid
+- Components build successfully
+- Discovery functions work correctly
+- Metadata extraction is complete and accurate
+
+**What's Needed:**
+- Desktop app integration (reuse patterns from CLI tool)
+- Plugin directory management
+- Registry population from loaded components
+- Proper error handling for missing/invalid components
 
 ## Session Start
 
 Please:
 1. Read `AGENTS.md` for development philosophy
-2. Review `CURRENT_STATE.md` section 1 (WASM Runtime & Loader) for the full design
-3. Help me decide: Should we start with Track A (CLI tool) or Track B (desktop loader)?
-4. Guide me through implementation one step at a time
+2. Review `CURRENT_STATE.md` for detailed progress
+3. Check `cli/inspect/src/main.rs` to see the working component loading pattern
+4. Guide me through building the desktop app plugin discovery system
+5. One step at a time, with explanations
 
-Let's build the WASM loader system! 🚀
+The CLI tool validates the architecture - now let's integrate it into the actual application! 🚀
