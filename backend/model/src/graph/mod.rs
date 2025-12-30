@@ -1,4 +1,5 @@
 mod data_type;
+mod data_type_registry;
 mod edge;
 mod edge_builder;
 mod graph;
@@ -11,6 +12,8 @@ mod port;
 mod port_builder;
 
 pub use data_type::DataType;
+pub use data_type::DataTypeInfo;
+pub use data_type_registry::DataTypeRegistry;
 pub use edge::Edge;
 pub use edge_builder::EdgeBuilder;
 pub use graph::Graph;

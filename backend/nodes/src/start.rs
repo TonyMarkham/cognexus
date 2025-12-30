@@ -1,6 +1,6 @@
 use crate::error::NodeError;
 
-use cognexus_model::graph::{DataType, NodeDefinition, NodeDefinitionInfo, Port, PortBuilder};
+use cognexus_model::graph::{DataTypeInfo, NodeDefinition, NodeDefinitionInfo, Port, PortBuilder};
 use cognexus_types::SignalType;
 
 use cognexus_model::error::ModelError;

@@ -6,10 +6,7 @@ use uuid::Uuid;
 
 /// Trait for defining data types that can flow through the graph.
 /// Both first-party and plugin types implement this trait.
-pub trait DataType {
-    /// The error type for serialization/deserialization operations.
-    type Error: Error;
-
+pub trait DataTypeInfo {
     /// Unique identifier for this data type.
     fn type_id(&self) -> Uuid;
 
@@ -21,6 +18,10 @@ pub trait DataType {
 
     /// Model version this type was built against.
     fn model_version(&self) -> Version;
+}
+
+pub trait DataType: DataTypeInfo {
+    type Error: Error;
 
     /// Serialize a value of this type to bytes (for WASM boundary crossing).
     fn serialize(&self, value: Box<dyn Any>) -> Result<Vec<u8>, Self::Error>;

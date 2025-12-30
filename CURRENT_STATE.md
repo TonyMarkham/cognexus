@@ -1,6 +1,6 @@
 # Current State - Cognexus Development
 
-**Last Updated:** December 29, 2024
+**Last Updated:** December 30, 2024
 
 ---
 
@@ -10,19 +10,22 @@
 **Backend Model (`backend/model/`):**
 - Graph, Node, Port, Edge data structures with full encapsulation
 - Builder patterns for all entities (with optional IDs for deserialization)
-- `DataType` trait with associated error types for proper encapsulation
+- `DataType` trait split into `DataTypeInfo` (metadata) and `DataType` (serialization) with associated error types
+- `DataTypeRegistry` for UUID→type lookup without error type conflicts ✅ **NEW**
 - `NodeDefinition` trait split into `NodeDefinitionInfo` (metadata) and `NodeDefinition` (execution)
 - `NodeDefinitionRegistry` for UUID→definition lookup without error type conflicts
-- Graph operations: `add_node()` and `add_edge()` with validation
+- Graph operations: `add_node()` and `add_edge()` with full validation via registries ✅ **UPDATED**
+- Port system: definitions create Port instances with unique UUIDs per definition ✅ **REFACTORED**
 - Support for both dynamic creation and deserialization via optional IDs
 
 ### ✅ Plugin SDK (Traits)
 **For plugin developers:**
-- `DataType` trait - define custom data types with serialization
-- `NodeDefinition` + `NodeDefinitionInfo` traits - define custom node types
+- `DataTypeInfo` + `DataType` traits - define custom data types with serialization ✅ **UPDATED**
+- `NodeDefinitionInfo` + `NodeDefinition` traits - define custom node types with execution
 - Associated error types - each plugin defines its own errors for proper error hygiene
 - Version tracking with `semver` - compatibility checking built into traits
 - WASM-compatible interfaces - all trait methods work across WASM boundary
+- Registry-safe trait splitting prevents object-safety issues with associated types
 
 ### ✅ First-Party Implementations
 **Types (`backend/types/`):**
@@ -68,65 +71,96 @@
 **Status:** Not started (0%)  
 **Blocking:** Everything else
 
-**In desktop app (`apps/desktop/cognexus/`):**
+**A. CLI Tool for WASM Interrogation** (`cognexus inspect`)
+- [ ] Create `cognexus-cli` crate with inspect command
+- [ ] Load WASM module using wasmtime/wasmer
+- [ ] Call registration function to discover types/nodes
+- [ ] Extract metadata by calling trait methods:
+  - `type_id()`, `name()`, `description()` for data types
+  - `definition_id()`, `name()`, `input_port_specs()`, `output_port_specs()` for nodes
+- [ ] Output discovered metadata (JSON or human-readable)
+- [ ] Optionally generate signed metadata cache files
+  - Include WASM hash for tamper detection
+  - Binary format (not text-based for security)
+
+**Why needed first:** Plugin authors use this to discover first-party type/node UUIDs. Third-party plugins can also be interrogated the same way. The WASM itself is the single source of truth.
+
+**Example usage:**
+```bash
+# Discover first-party types
+$ cognexus inspect cognexus_types.wasm
+Found data types:
+  - Signal (989bcbb2-b1a1-4f3f-be15-22ada278aedc)
+    Description: A flow control signal with no data payload
+
+# Discover nodes and their ports
+$ cognexus inspect cognexus_nodes.wasm
+Found node definitions:
+  - Start (40ebe0be-d2db-4eed-80f3-91267352ee42)
+    Output ports: signal → Signal type
+```
+
+**B. Desktop App WASM Loader** (`apps/desktop/cognexus/`)
 - [ ] Add `wasmtime` or `wasmer` dependency to Cargo.toml
-- [ ] Implement WASM module discovery system
-  - Scan for `.wasm` files in plugin directories
-  - Support both built-in (first-party) and external (third-party) modules
+- [ ] Implement lazy-loading discovery system
+  - Scan metadata cache files at startup (cheap)
+  - Map type/node UUIDs → WASM file paths
+  - Only load WASM when type/node is actually requested
 - [ ] Create module loader
   - Load WASM bytes from files
+  - Verify WASM hash matches metadata (security)
   - Instantiate WASM modules with appropriate imports
   - Handle module initialization
-- [ ] Build FFI bridge for calling WASM functions
-  - Call node `execute()` functions
-  - Call type `serialize()`/`deserialize()` functions
-  - Handle memory management across WASM boundary
-- [ ] Populate registries from loaded modules
-  - Load types WASM → populate `DataTypeRegistry`
-  - Load nodes WASM → populate `NodeDefinitionRegistry`
-  - Handle version validation
-  - Handle registration errors gracefully
+- [ ] Build registration system
+  - Each WASM exports `register_plugin()` function
+  - Function instantiates types/nodes and registers them
+  - Registries populated on-demand when UUIDs requested
 - [ ] Handle serialization across WASM boundary
   - Convert Rust types to bytes
-  - Pass bytes to WASM
+  - Pass bytes to WASM for execution
   - Receive bytes from WASM
   - Convert bytes back to Rust types
+- [ ] Separate first-party from third-party plugins
+  - `builtin/` directory for first-party WASM (trusted, bundled with app)
+  - `plugins/` directory for third-party WASM (sandboxed, user-installed)
 
 **Why critical:** Without this, the WASM modules we built (`cognexus_types.wasm`, `cognexus_nodes.wasm`) are unused. This is THE piece that makes the plugin system real and validates our dogfooding approach.
 
-**Design considerations:**
-- Should modules be loaded at startup or on-demand?
-- How to handle module loading failures?
-- Should we support hot-reloading of modules?
-- How to sandbox untrusted plugins? (deferred for now)
+**Design decisions made:**
+- **Lazy loading:** Modules loaded on-demand, not at startup (performance)
+- **WASM is source of truth:** No hand-written manifests to prevent tampering
+- **Metadata caching:** Signed binary cache for fast discovery without loading WASM
+- **CLI-based discovery:** Plugin authors use `cognexus inspect` to find UUIDs
+- **Registration function pattern:** Each WASM exports `register_plugin()` that registers all its types/nodes
+- **Trait methods as interface:** UUIDs extracted by calling `type_id()` and other trait methods
 
-#### 2. **DataTypeRegistry**
-**Status:** Not started (0%)  
-**Depends on:** WASM runtime
+#### 2. **DataTypeRegistry** ✅ **COMPLETE**
+**Status:** Complete (100%)  
 
-- [ ] Create registry parallel to `NodeDefinitionRegistry`
-- [ ] Store `DataType` trait objects by UUID
-- [ ] Implement registration with duplicate detection
-- [ ] Implement lookup by UUID with error handling
-- [ ] Add version validation (similar to nodes)
-- [ ] Export from model crate
+- [x] Create registry parallel to `NodeDefinitionRegistry`
+- [x] Store `DataTypeInfo` trait objects by UUID
+- [x] Implement registration with duplicate detection
+- [x] Implement lookup by UUID with error handling
+- [x] Export from model crate
+- [ ] Add version validation (similar to nodes) - deferred
 
 **Why needed:** Nodes reference data types by UUID. We need a way to look them up at runtime for validation and execution.
 
-#### 3. **Port Validation in Graph**
-**Status:** Stubbed with TODO comments  
-**Depends on:** DataTypeRegistry, WASM runtime
+#### 3. **Port Validation in Graph** ✅ **COMPLETE**
+**Status:** Complete (100%)  
+**Depends on:** ~~DataTypeRegistry~~ (done), WASM runtime
 
-- [ ] When adding edges, validate ports exist on nodes
+- [x] When adding edges, validate ports exist on nodes
   - Query node definition from registry
   - Check port specs for matching port IDs
-- [ ] Validate port data types are compatible
+- [x] `Graph::add_node()` validates definition exists in NodeDefinitionRegistry
+- [x] `Graph::add_edge()` validates ports exist on node definitions
+- [x] Add comprehensive error messages
+- [ ] Validate port data types are compatible - deferred
   - Check source port type matches target port type
   - Consider type coercion rules (future)
-- [ ] Update `Graph::add_edge()` TODO comments
-- [ ] Add comprehensive error messages
 
-**Current state:** Basic node existence validation is done. Port validation is marked as TODO.
+**Current state:** Full validation implemented. Both methods now require registry references.
 
 #### 4. **Graph Query Methods**
 **Status:** Basic getters only (25%)
@@ -279,32 +313,34 @@
 - ✅ Build system: 100%
 - ✅ Documentation: 80%
 
-### Runtime: 0% Complete ❌
+### Runtime: 20% Complete ⚠️
 - ❌ WASM loader: 0% ← **BLOCKING EVERYTHING**
-- ⚠️ Registries: 50% (Node registry done, DataType registry needed)
+- ✅ Registries: 100% (Both registries complete, ready for WASM loader)
 - ❌ Execution engine: 0%
 - ❌ Serialization: 10% (structures support it, no format implementation)
 
-### Overall Progress: ~35% Complete
+### Overall Progress: ~40% Complete
 
-**Next milestone:** WASM runtime functional (would bring overall to ~50%)
+**Next milestone:** WASM runtime functional (would bring overall to ~55%)
 
 ---
 
 ## 🎯 Recommended Next Steps (Priority Order)
 
 ### Phase 1: Make Plugins Real (Weeks 1-2)
-1. **Build WASM runtime & loader** ⭐ Most critical
+1. **Build WASM runtime & loader** ⭐ Most critical ⭐ **READY TO START**
    - Research wasmtime vs wasmer
    - Implement basic module loading
    - Test with first-party nodes/types
+   - Populate registries from WASM modules
    - This unblocks everything else
+   - **Registries are ready and waiting for the loader**
 
-2. **Create DataTypeRegistry**
+2. ~~**Create DataTypeRegistry**~~ ✅ **COMPLETE**
    - Mirror NodeDefinitionRegistry pattern
    - Wire into WASM loader
 
-3. **Complete port validation**
+3. ~~**Complete port validation**~~ ✅ **COMPLETE**
    - Use registries to validate edges fully
 
 ### Phase 2: Expand Capabilities (Weeks 3-4)
@@ -353,6 +389,8 @@
 - Builder patterns: **Consistent** (all entities use them)
 - UUID-based references: **Flexible** (no lifetime issues)
 - Trait splitting (Info/Definition): **Solved registry problem** (no error type conflicts)
+- Port UUIDs from definitions: **Correct design** (node instance ID + port definition ID = unique connection)
+- Registry dependency injection: **Clean separation** (Graph doesn't own registries, they're passed in)
 
 ### ⚠️ Pending Validation
 - WASM runtime choice (wasmtime vs wasmer): **Research needed**
@@ -368,10 +406,11 @@ None yet - we've been building things properly from the start.
 ## 🐛 Known Issues
 
 1. **Types/Nodes WASM not loaded:** Built but unused (by design, waiting for runtime)
-2. **Port validation incomplete:** Marked as TODO in `Graph::add_edge()`
-3. **No type registry:** Only node registry exists
+2. ~~**Port validation incomplete:**~~ ✅ Fixed - full validation implemented
+3. ~~**No type registry:**~~ ✅ Fixed - DataTypeRegistry complete
 4. **Limited type library:** Only Signal type implemented
 5. **Limited node library:** Only Start/End nodes implemented
+6. **Registries not instantiated:** No code creates/populates registries yet (waiting for WASM loader)
 
 ---
 
