@@ -87,7 +87,70 @@ cd ../..
 
 ## Build Instructions
 
-### Full Build (Desktop App)
+### Quick Start (Recommended)
+
+The project uses **Just** for automated builds. Just is a cross-platform command runner that handles the entire build process.
+
+**Install Just:**
+```bash
+cargo install just
+# or on macOS: brew install just
+```
+
+**Development Mode:**
+```bash
+just dev
+```
+This builds WASM components and runs the desktop app with hot-reload.
+
+**Production Build:**
+```bash
+just build-all
+```
+This builds everything (WASMs + desktop app) and creates the release bundle.
+
+**Run Production Build:**
+```bash
+# macOS
+open target/release/bundle/macos/Cognexus.app
+# or
+./target/release/bundle/macos/Cognexus.app/Contents/MacOS/cognexus-desktop
+
+# Windows
+./target/release/bundle/msi/Cognexus.msi
+
+# Linux
+./target/release/bundle/appimage/cognexus.AppImage
+```
+
+**Individual Component Builds:**
+
+Debug builds:
+```bash
+just build-types-debug    # Build only the types WASM component (debug)
+just build-nodes-debug    # Build only the nodes WASM component (debug)
+just build-wasm-debug     # Build both WASM components (debug)
+```
+
+Release builds:
+```bash
+just build-types-release  # Build only the types WASM component (release)
+just build-nodes-release  # Build only the nodes WASM component (release)
+just build-wasm-release   # Build both WASM components (release)
+```
+
+Other targets:
+```bash
+just build-desktop        # Build the desktop app (requires WASMs already built)
+```
+
+The justfile automatically:
+- Builds WASM components using `cargo component build`
+- Copies WASM files to `target/{debug,release}/resources/builtin/`
+- Runs Tauri build/dev commands in the correct order
+- Handles both debug and release build configurations
+
+### Manual Build (Fallback)
 
 To build and run the desktop application:
 
@@ -145,31 +208,6 @@ cd ../..
 
 # Build production desktop app
 cargo tauri build
-```
-
-Production binary locations:
-- **macOS**: `./target/release/bundle/macos/Cognexus.app`
-- **Windows**: `./target/release/bundle/msi/`
-- **Linux**: `./target/release/bundle/appimage/`
-
-## Running the Desktop App
-
-### Development Mode
-```bash
-cargo tauri dev
-```
-Hot-reloads on Rust and Blazor changes.
-
-### Production Binary
-```bash
-# macOS
-./target/release/bundle/macos/Cognexus.app/Contents/MacOS/cognexus-desktop
-
-# Windows
-./target/release/bundle/msi/Cognexus.msi
-
-# Linux
-./target/release/bundle/appimage/cognexus.AppImage
 ```
 
 ## Inspecting Plugin Components
