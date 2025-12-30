@@ -1,5 +1,8 @@
+use crate::graph::Port;
+
 use std::error::Error;
 
+use crate::error::ModelError;
 use semver::Version;
 use uuid::Uuid;
 
@@ -19,10 +22,10 @@ pub trait NodeDefinitionInfo {
     fn model_version(&self) -> Version;
 
     /// Specifications for input ports: (name, data_type_id).
-    fn input_port_specs(&self) -> Vec<(&str, Uuid)>;
+    fn input_port_specs(&self) -> Result<Vec<Port>, ModelError>;
 
     /// Specifications for output ports: (name, data_type_id).
-    fn output_port_specs(&self) -> Vec<(&str, Uuid)>;
+    fn output_port_specs(&self) -> Result<Vec<Port>, ModelError>;
 }
 
 /// Trait for defining node types that can be instantiated in the graph.

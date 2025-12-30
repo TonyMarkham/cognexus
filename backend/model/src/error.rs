@@ -14,4 +14,12 @@ pub enum ModelError {
         message: String,
         location: ErrorLocation,
     },
+
+    #[error("Port Error: {message} (port: '{port_name}', type: {data_type_id}) {location}")]
+    PortError {
+        message: String,
+        port_name: String,
+        data_type_id: uuid::Uuid,
+        location: ErrorLocation,
+    },
 }

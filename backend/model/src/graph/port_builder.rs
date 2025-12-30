@@ -34,13 +34,17 @@ impl PortBuilder {
     pub fn build(self) -> Result<Port, ModelError> {
         let id = self.id.unwrap_or_else(|| Uuid::new_v4());
 
-        let name = self.name.ok_or_else(|| ModelError::ModelError {
+        let name = self.name.ok_or_else(|| ModelError::PortError {
             message: String::from("Port name is required"),
+            port_name: String::from("<unnamed>"),
+            data_type_id: self.data_type_id.unwrap_or_else(Uuid::nil),
             location: ErrorLocation::from(Location::caller()),
         })?;
 
-        let data_type_id = self.data_type_id.ok_or_else(|| ModelError::ModelError {
+        let data_type_id = self.data_type_id.ok_or_else(|| ModelError::PortError {
             message: String::from("Port Data Type ID is required"),
+            port_name: name.clone(),
+            data_type_id: Uuid::nil(),
             location: ErrorLocation::from(Location::caller()),
         })?;
 

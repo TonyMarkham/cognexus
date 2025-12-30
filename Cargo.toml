@@ -30,7 +30,7 @@ web-sys = { version = "0.3.83", features = ["HtmlCanvasElement", "Window", "Docu
 js-sys = { version = "0.3" }
 wasm-bindgen-futures = { version = "0.4" }
 console_error_panic_hook = { version = "0.1.7" }
-uuid = { version = "1.19.0", features = ["v4", "serde"] }
+uuid = { version = "1.19.0", features = ["v4", "serde", "js"] }
 semver = { version = "1.0.27" }
 
 proto = { path = "backend/proto" }
