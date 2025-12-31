@@ -125,4 +125,31 @@ impl Loader {
 
         Ok(nodes)
     }
+
+    /// Determine what kind of plugin a component is by examining its exports.
+    ///
+    /// Returns "types" if it exports the cognexus:plugin/types interface,
+    /// "nodes" if it exports cognexus:plugin/nodes, or an error if neither.
+    #[track_caller]
+    pub fn determine_component_kind(
+        &self,
+        component: &Component,
+    ) -> Result<&'static str, CognexusError> {
+        let component_type = component.component_type();
+
+        for (name, _item) in component_type.exports(&self.engine) {
+            if name.contains("types") {
+                return Ok("types");
+            } else if name.contains("nodes") {
+                return Ok("nodes");
+            }
+        }
+
+        Err(CognexusError::CognexusError {
+            message: String::from(
+                "Component does not export cognexus:plugin/types or cognexus:plugin/nodes interface",
+            ),
+            location: ErrorLocation::from(Location::caller()),
+        })
+    }
 }
