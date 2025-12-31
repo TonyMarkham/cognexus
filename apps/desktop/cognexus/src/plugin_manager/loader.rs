@@ -1,14 +1,16 @@
 //! Loader for WASM components using wasmtime.
 
 use crate::error::CognexusError;
+use crate::plugin_manager::State;
 
 use common::error::error_location::ErrorLocation;
 
 use std::panic::Location;
 use std::path::Path;
 
-use wasmtime::component::Component;
-use wasmtime::{Config, Engine};
+use wasmtime::component::{Component, Linker};
+use wasmtime::{Config, Engine, Store};
+use wasmtime_wasi::p2;
 
 // Generate bindings for both plugin worlds
 mod types_world {
@@ -52,5 +54,75 @@ impl Loader {
             message: format!("Failed to load component from {}: {}", path.display(), e),
             location: ErrorLocation::from(Location::caller()),
         })
+    }
+
+    /// Discover data types from a types-plugin component.
+    #[track_caller]
+    pub fn discover_types(
+        &self,
+        component: &Component,
+    ) -> Result<Vec<types_world::exports::cognexus::plugin::types::TypeInfo>, CognexusError> {
+        // Create linker with WASI support
+        let mut linker = Linker::new(&self.engine);
+        p2::add_to_linker_sync(&mut linker).map_err(|e| CognexusError::CognexusError {
+            message: format!("Failed to add WASI to linker: {}", e),
+            location: ErrorLocation::from(Location::caller()),
+        })?;
+
+        // Create store with state
+        let state = State::new();
+        let mut store = Store::new(&self.engine, state);
+
+        // Instantiate and call discovery function
+        let plugin = types_world::TypesPlugin::instantiate(&mut store, component, &linker)
+            .map_err(|e| CognexusError::CognexusError {
+                message: format!("Failed to instantiate types plugin: {e}"),
+                location: ErrorLocation::from(Location::caller()),
+            })?;
+
+        let types = plugin
+            .cognexus_plugin_types()
+            .call_list_types(&mut store)
+            .map_err(|e| CognexusError::CognexusError {
+                message: format!("Failed to call list_types: {e}"),
+                location: ErrorLocation::from(Location::caller()),
+            })?;
+
+        Ok(types)
+    }
+
+    /// Discover nodes from a nodes-plugin component.
+    #[track_caller]
+    pub fn discover_nodes(
+        &self,
+        component: &Component,
+    ) -> Result<Vec<nodes_world::exports::cognexus::plugin::nodes::NodeInfo>, CognexusError> {
+        // Create linker with WASI support
+        let mut linker = Linker::new(&self.engine);
+        p2::add_to_linker_sync(&mut linker).map_err(|e| CognexusError::CognexusError {
+            message: format!("Failed to add WASI to linker: {e}"),
+            location: ErrorLocation::from(Location::caller()),
+        })?;
+
+        // Create store with state
+        let state = State::new();
+        let mut store = Store::new(&self.engine, state);
+
+        // Instantiate and call discovery function
+        let plugin = nodes_world::NodesPlugin::instantiate(&mut store, component, &linker)
+            .map_err(|e| CognexusError::CognexusError {
+                message: format!("Failed to instantiate nodes plugin: {e}"),
+                location: ErrorLocation::from(Location::caller()),
+            })?;
+
+        let nodes = plugin
+            .cognexus_plugin_nodes()
+            .call_list_nodes(&mut store)
+            .map_err(|e| CognexusError::CognexusError {
+                message: format!("Failed to call list_nodes: {e}"),
+                location: ErrorLocation::from(Location::caller()),
+            })?;
+
+        Ok(nodes)
     }
 }
