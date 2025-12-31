@@ -599,13 +599,17 @@ version = "0.1.0"
 dependencies = [
  "cognexus-model",
  "cognexus-renderer",
+ "common",
  "prost",
  "proto",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "thiserror 2.0.17",
  "tokio",
+ "wasmtime",
+ "wasmtime-wasi",
  "wgpu",
 ]
 

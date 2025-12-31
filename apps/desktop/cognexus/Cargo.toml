@@ -8,12 +8,16 @@ tauri-build = { workspace = true }
 
 [dependencies]
 tauri = { workspace = true }
+thiserror = { workspace = true }
+wasmtime = { workspace = true }
+wasmtime-wasi = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 prost = { workspace = true }
 tokio = { workspace = true }
 wgpu = { workspace = true }
 
+common = { workspace = true }
 proto = { workspace = true }
 cognexus-renderer = { workspace = true }
 cognexus-model = { workspace = true }
