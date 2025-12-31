@@ -110,18 +110,21 @@ just build-all
 This builds everything (WASMs + desktop app) and creates the release bundle.
 
 **Run Production Build:**
+
+To see debug output, plugin discovery logs, and error messages, run the binary directly in a terminal:
+
 ```bash
-# macOS
-open target/release/bundle/macos/Cognexus.app
-# or
-./target/release/bundle/macos/Cognexus.app/Contents/MacOS/cognexus-desktop
+# macOS - run binary directly to see console output
+/Users/tony/git/cognexus/target/release/bundle/macos/Cognexus.app/Contents/MacOS/cognexus-desktop
 
 # Windows
-./target/release/bundle/msi/Cognexus.msi
+./target/release/cognexus-desktop.exe
 
 # Linux
 ./target/release/bundle/appimage/cognexus.AppImage
 ```
+
+This shows plugin discovery output, resource paths, and any debug/error messages.
 
 **Individual Component Builds:**
 

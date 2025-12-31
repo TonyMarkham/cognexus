@@ -4,34 +4,30 @@
 mod error;
 mod plugin_manager;
 
-fn main() {
-    temp_test();
+use tauri::Manager;
 
+fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            // Get the resource directory path using Tauri's PathResolver
+            let resource_dir = app
+                .path()
+                .resolve("builtin", tauri::path::BaseDirectory::Resource)?;
+
+            println!("Resource directory: {}", resource_dir.display());
+
+            // Initialize plugin manager with the proper resource path
+            match plugin_manager::PluginManager::new(resource_dir) {
+                Ok(mut manager) => {
+                    if let Err(e) = manager.discover_plugins() {
+                        eprintln!("Plugin discovery failed: {e}");
+                    }
+                }
+                Err(e) => eprintln!("Failed to create plugin manager: {e}"),
+            }
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-fn temp_test() {
-    // Print current working directory
-    if let Ok(cwd) = std::env::current_dir() {
-        println!("Current working directory: {}", cwd.display());
-    }
-
-    // Test plugin discovery
-    let builtin_path = std::path::PathBuf::from("../../../target/debug/resources/builtin");
-
-    if builtin_path.exists() {
-        println!("Testing plugin discovery...");
-        match plugin_manager::PluginManager::new(builtin_path) {
-            Ok(mut manager) => {
-                if let Err(e) = manager.discover_plugins() {
-                    eprintln!("Plugin discovery failed: {}", e);
-                }
-            }
-            Err(e) => eprintln!("Failed to create plugin manager: {e}"),
-        }
-    } else {
-        eprintln!("Builtin plugin directory not found. Run 'just build-wasm-debug' first.");
-    }
 }
