@@ -10,7 +10,7 @@ pub struct State {
 
 impl State {
     pub fn new() -> Self {
-        Self{
+        Self {
             ctx: WasiCtx::builder().build(),
             table: ResourceTable::new(),
         }
@@ -19,9 +19,9 @@ impl State {
 
 impl WasiView for State {
     fn ctx(&mut self) -> WasiCtxView<'_> {
-        WasiCtxView{
+        WasiCtxView {
             ctx: &mut self.ctx,
             table: &mut self.table,
         }
-    }    
+    }
 }

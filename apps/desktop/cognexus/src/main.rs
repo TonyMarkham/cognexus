@@ -1,8 +1,8 @@
 // Prevents additional console window on Windows in release builds
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod plugin_manager;
 mod error;
+mod plugin_manager;
 
 fn main() {
     tauri::Builder::default()
