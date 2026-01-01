@@ -1,6 +1,6 @@
 # ADR-0002: Camera Control Input System
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2024-12-18  
 **Deciders:** Tony  
 **Related:** ADR-0001 (Camera and Grid System)

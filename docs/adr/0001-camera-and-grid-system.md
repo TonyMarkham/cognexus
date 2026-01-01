@@ -1,6 +1,6 @@
 # ADR-0001: Camera and Grid Rendering System
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2024-12-18  
 **Deciders:** Tony  
 

@@ -60,9 +60,12 @@ The number is permanent and never changes, even if the ADR is superseded.
 
 ## Current ADRs
 
-- [ADR-0001: Camera and Grid Rendering System](0001-camera-and-grid-system.md) - Proposed
-- [ADR-0002: Camera Control Input System](0002-camera-control-input-system.md) - Proposed
+- [ADR-0001: Camera and Grid Rendering System](0001-camera-and-grid-system.md) - Accepted
+- [ADR-0002: Camera Control Input System](0002-camera-control-input-system.md) - Accepted
 - [ADR-0003: GPU-Accelerated Visual Effects and Rendering](0003-gpu-accelerated-visual-effects-and-rendering.md) - Accepted
+- [ADR-0004: Node Visual Style System with YAML DSL](0004-node-visual-style-system-with-yaml-dsl.md) - Proposed
+- [ADR-0005: Plugin Discovery and Registry Architecture](0005-plugin-discovery-and-registry-architecture.md) - Accepted
+- [ADR-0006: Execution Architecture and Scaling Strategy](0006-execution-architecture-and-scaling.md) - Proposed
 
 ## Resources
 
