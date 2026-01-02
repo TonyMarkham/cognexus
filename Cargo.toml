@@ -7,6 +7,7 @@ members = [
     "backend/common",
     "backend/types",
     "backend/nodes",
+    "backend/plugin-manager",
     "cli/inspect"
 ]
 
@@ -37,6 +38,8 @@ wasmtime = { version = "40.0.0" }
 wasmtime-wasi = { version = "40.0.0" }
 clap = { version = "4.5.53", features = ["derive"] }
 wit-bindgen-rt = { version = "0.44.0", features = ["bitflags"] }
+log = { version = "0.4.29" }
+fern = { version = "0.7.1" }
 
 proto = { path = "backend/proto" }
 cognexus-renderer = { path = "backend/renderer" }

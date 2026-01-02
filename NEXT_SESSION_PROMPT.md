@@ -1,165 +1,142 @@
-# Next Session Prompt - December 30, 2024 (Evening)
+# Next Session: Registry Implementation & Desktop Integration
 
-## Context
+## Quick Context
 
-I'm Tony, building **Cognexus** - a visual workflow automation tool (N8N clone) with a WebGL-rendered node graph editor. This is a learning project where I build and AI agents provide guidance using production-grade standards.
+**What We Completed (Session 1 - Jan 1, 2026):**
+- ✅ Created production-grade `backend/plugin-manager` crate
+- ✅ Migrated and refactored plugin discovery code (scanner, loader, state, error handling)
+- ✅ Defined Protobuf schema for plugin metadata (`proto/registry.proto`)
+- ✅ Implemented WIT → Protobuf translation layer
 
-## What We Just Completed (Dec 30, 2024 - Evening Session)
+**Current State:**
+- Plugin manager can discover `.wasm` plugins from filesystem
+- Can extract metadata (nodes, types, ports) from plugins
+- Can translate WIT structures to Protobuf messages
+- **BUT:** Discoveries are printed to logs and then discarded (no storage)
 
-✅ **WASM Component Model System**
-- Created WIT interface definitions (`wit/plugin.wit`) with separate worlds:
-  - `types-plugin` world for data type components
-  - `nodes-plugin` world for node components
-- Converted `backend/types` and `backend/nodes` to WASM components using `cargo-component`
-- Implemented Component Model guest traits (`list-types()`, `list-nodes()`)
-- Components export full metadata: UUIDs, names, descriptions, versions, port specs
+---
 
-✅ **CLI Inspection Tool** (`cli/inspect/`)
-- Built `cognexus-inspect` binary for interrogating plugin components
-- Loads WASM components using wasmtime Component Model API
-- Generates WIT bindings for both worlds using `wasmtime::component::bindgen!`
-- Calls discovery functions across component boundary
-- Supports `--kind` flag to specify types or nodes
-- Validates entire Component Model architecture end-to-end
+## Your Mission: Session 2
 
-✅ **Documentation Updates**
-- Updated README with Component Model build instructions
-- Added CLI tool usage section with examples
-- Updated plugin development guide
-- Separated sections for adding types vs nodes
+Implement the **Registry** and wire it into the **Desktop App**.
 
-✅ **Validation Complete**
-- Both `cognexus_types.wasm` and `cognexus_nodes.wasm` build successfully
-- CLI tool successfully loads and interrogates both components
-- Metadata extraction works correctly
-- Component Model architecture proven production-ready
+### Step 6: Implement Registry
 
-## Current State
+**Goal:** Create a data structure to store discovered plugin metadata in memory.
 
-**Foundation: 90% Complete** (up from 70%)
-- ✅ Data model with builders
-- ✅ Both registries (DataType + NodeDefinition)
-- ✅ First-party types/nodes as WASM components
-- ✅ Graph validation complete
-- ✅ Component Model system functional
-- ✅ WIT interfaces defined
-- ✅ CLI inspection tool working
+**Create:** `backend/plugin-manager/src/registry.rs`
 
-**Runtime: 50% Complete** (up from 20%)
-- ✅ CLI tool: 100% (validates architecture)
-- ❌ Desktop app plugin discovery: 0% ← **NEXT TASK**
-- ✅ Registries: 100% (waiting for desktop integration)
+**Requirements:**
+1. Store discovered nodes and types (keyed by ID)
+2. Thread-safe for Tauri state (use `Arc<RwLock<HashMap<...>>>`)
+3. Methods:
+   - `new()` - Create empty registry
+   - `register_node(NodeDefinition)` - Add discovered node
+   - `register_type(TypeDefinition)` - Add discovered type
+   - `get_node(&str) -> Option<NodeDefinition>` - Query by ID
+   - `get_type(&str) -> Option<TypeDefinition>` - Query by ID
+   - `list_nodes() -> Vec<NodeDefinition>` - Get all nodes
+   - `list_types() -> Vec<TypeDefinition>` - Get all types
 
-**Overall: ~60% Complete** (up from 40%)
+**Don't forget:**
+- Production-grade error handling (follow existing patterns)
+- Use protobuf types: `proto::{NodeDefinition, TypeDefinition}`
+- Export from `lib.rs`
 
-## What to Work On Next
+---
 
-**Primary Goal:** Integrate plugin discovery into the Tauri desktop app
+### Step 7: Update Desktop App
 
-### Desktop App Plugin Discovery System
+**Goal:** Replace the old plugin_manager module with the new crate.
 
-Build the runtime plugin loading system for the Tauri desktop application:
+**Tasks:**
+1. Add dependency to `apps/desktop/cognexus/Cargo.toml`:
+   ```toml
+   cognexus-plugin-manager = { workspace = true }
+   ```
+   
+2. Add to workspace `Cargo.toml`:
+   ```toml
+   cognexus-plugin-manager = { path = "backend/plugin-manager" }
+   ```
 
-1. **Plugin Directory Structure**
-   - Determine cross-platform plugin directories:
-     - `builtin/` - First-party components (bundled with app, trusted)
-     - `plugins/` - Third-party components (user-installed, sandboxed)
-   - Use Tauri's resource APIs to locate bundled files
-   - Use platform-appropriate user directories (XDG, AppData, Application Support)
+3. In `apps/desktop/cognexus/src/main.rs`:
+   - Remove `mod plugin_manager;`
+   - Import: `use cognexus_plugin_manager::{PluginManager, Registry};`
+   - Initialize registry: `let registry = Registry::new();`
+   - After `discover_plugins()`, populate registry with discovered data
+   - Store registry in Tauri state
 
-2. **Component Scanner**
-   - Scan plugin directories at startup
-   - Discover `.wasm` component files
-   - Determine component type (types-plugin or nodes-plugin)
-   - Build an index of available components
+4. Delete old code: `apps/desktop/cognexus/src/plugin_manager/`
 
-3. **Lazy Component Loading**
-   - Don't load all components at startup
-   - Load on-demand when UUID is requested
-   - Cache loaded components in memory
-   - Handle component instantiation errors gracefully
+5. Test: `cargo tauri dev` should discover plugins and populate registry
 
-4. **Registry Population**
-   - Call `list-types()` on types components
-   - Call `list-nodes()` on nodes components
-   - Populate `DataTypeRegistry` with discovered types
-   - Populate `NodeDefinitionRegistry` with discovered nodes
-   - Store component references for later execution
+---
 
-5. **Tauri Integration**
-   - Add wasmtime dependencies to Tauri app `Cargo.toml`
-   - Create plugin manager service/module
-   - Initialize at app startup
-   - Expose plugin info to Blazor frontend via Tauri commands (future)
+### Step 8: Add Tauri Commands
 
-## Important Constraints
+**Goal:** Expose registry data to frontend via Tauri IPC.
 
-**Teaching Mode:**
-- I implement features - you provide guidance and code snippets
-- Give me snippets to type in, one step at a time
-- Wait for my confirmation before proceeding
-- Focus on correctness over speed
+**In `apps/desktop/cognexus/src/main.rs`, add:**
 
-**Production Standards:**
-- No shortcuts or technical debt
-- Proper error handling (avoid `.unwrap()` in prod code)
-- Security considerations from the start
-- Document architectural decisions
-- Cross-platform compatibility (macOS, Windows, Linux)
+```rust
+#[tauri::command]
+fn list_available_nodes(
+    registry: tauri::State<Registry>
+) -> Vec<proto::NodeDefinition> {
+    registry.list_nodes()
+}
+
+#[tauri::command]
+fn list_available_types(
+    registry: tauri::State<Registry>
+) -> Vec<proto::TypeDefinition> {
+    registry.list_types()
+}
+
+#[tauri::command]
+fn get_node_definition(
+    id: String,
+    registry: tauri::State<Registry>
+) -> Option<proto::NodeDefinition> {
+    registry.get_node(&id)
+}
+```
+
+Register commands in `.invoke_handler()`.
+
+**Test:** Use Tauri devtools to call these commands and verify responses.
+
+---
+
+## Important Reminders
+
+1. **Read files before making claims** - Don't assume, verify
+2. **Production-grade only** - Proper error handling, no shortcuts
+3. **Constants over magic strings** - Define once, use everywhere
+4. **Small chunks** - Propose code in bite-sized pieces for review
+5. **Fresh eyes reviews** - Read the actual files, not your cache
+
+---
 
 ## Key Files to Reference
 
-- `AGENTS.md` - Development philosophy and architecture
-- `CURRENT_STATE.md` - Updated with Component Model progress
-- `README.md` - Updated with build instructions and CLI usage
-- `wit/plugin.wit` - WIT interface definitions
-- `cli/inspect/src/main.rs` - Working example of loading components
-- `backend/model/src/graph/` - Registries waiting for population
-- `apps/desktop/cognexus/` - Tauri app that needs plugin integration
+- `backend/plugin-manager/src/lib.rs` - Public API, constants
+- `backend/plugin-manager/src/error.rs` - Error handling patterns
+- `backend/plugin-manager/src/translator.rs` - WIT → Proto conversion
+- `proto/registry.proto` - Message definitions
+- `SESSION_PLAN.md` - Full roadmap
 
-## Technical Context
+---
 
-**Tech Stack:**
-- Rust (backend, WASM components)
-- WASM Component Model (plugin system)
-- wasmtime (component runtime)
-- WGPU (rendering)
-- Blazor WebAssembly (UI)
-- Tauri 2.5 (desktop app)
-- Protocol Buffers (communication)
+## Success Criteria for Session 2
 
-**Component Build Commands:**
-```bash
-# Build types component
-cargo component build -p cognexus-types
+- [ ] Registry stores discovered plugins in memory
+- [ ] Desktop app uses new `cognexus-plugin-manager` crate
+- [ ] Old plugin_manager code deleted
+- [ ] Tauri commands expose registry data
+- [ ] Can query nodes/types from frontend (verify in devtools)
 
-# Build nodes component  
-cargo component build -p cognexus-nodes
+---
 
-# Inspect components
-cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_types.wasm --kind types
-cargo run -p cognexus-inspect -- target/wasm32-wasip1/debug/cognexus_nodes.wasm --kind nodes
-```
-
-**What Works:**
-- CLI tool proves Component Model architecture is solid
-- Components build successfully
-- Discovery functions work correctly
-- Metadata extraction is complete and accurate
-
-**What's Needed:**
-- Desktop app integration (reuse patterns from CLI tool)
-- Plugin directory management
-- Registry population from loaded components
-- Proper error handling for missing/invalid components
-
-## Session Start
-
-Please:
-1. Read `AGENTS.md` for development philosophy
-2. Review `CURRENT_STATE.md` for detailed progress
-3. Check `cli/inspect/src/main.rs` to see the working component loading pattern
-4. Guide me through building the desktop app plugin discovery system
-5. One step at a time, with explanations
-
-The CLI tool validates the architecture - now let's integrate it into the actual application! 🚀
+**Start with:** "Let's implement the Registry (Step 6). I'll guide you through creating `backend/plugin-manager/src/registry.rs` with production-grade patterns."

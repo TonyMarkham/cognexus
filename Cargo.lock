@@ -650,6 +650,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cognexus-plugin-manager"
+version = "0.1.0"
+dependencies = [
+ "cognexus-model",
+ "common",
+ "log",
+ "proto",
+ "thiserror 2.0.17",
+ "wasmtime",
+ "wasmtime-wasi",
+]
+
+[[package]]
 name = "cognexus-renderer"
 version = "0.1.0"
 dependencies = [
