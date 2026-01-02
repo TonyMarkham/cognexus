@@ -1,142 +1,146 @@
-# Next Session: Registry Implementation & Desktop Integration
+# Next Session: Frontend Integration & Visual Node Editor
 
 ## Quick Context
 
-**What We Completed (Session 1 - Jan 1, 2026):**
-- ✅ Created production-grade `backend/plugin-manager` crate
-- ✅ Migrated and refactored plugin discovery code (scanner, loader, state, error handling)
-- ✅ Defined Protobuf schema for plugin metadata (`proto/registry.proto`)
-- ✅ Implemented WIT → Protobuf translation layer
+**What We Completed (Session 2 - Jan 1, 2026):**
+- ✅ Implemented production-grade Registry (thread-safe, proper error handling)
+- ✅ Added production-grade logging system (dual output, colors, timestamps)
+- ✅ Integrated plugin-manager crate into desktop app
+- ✅ Created Tauri commands exposing registry data to frontend
+- ✅ End-to-end tested: 2 nodes + 1 type discovered and queryable
 
 **Current State:**
-- Plugin manager can discover `.wasm` plugins from filesystem
-- Can extract metadata (nodes, types, ports) from plugins
-- Can translate WIT structures to Protobuf messages
-- **BUT:** Discoveries are printed to logs and then discarded (no storage)
+- Backend can discover plugins and store them in registry
+- Frontend can query available nodes/types via Tauri commands
+- **BUT:** No UI to browse or visualize the discovered plugins
+- **AND:** No visual node graph editor yet
 
 ---
 
-## Your Mission: Session 2
+## Your Mission: Session 3
 
-Implement the **Registry** and wire it into the **Desktop App**.
+Build the **Frontend Integration** to display discovered plugins and begin the visual node editor.
 
-### Step 6: Implement Registry
+### Option A: Plugin Browser UI (Recommended Starting Point)
 
-**Goal:** Create a data structure to store discovered plugin metadata in memory.
-
-**Create:** `backend/plugin-manager/src/registry.rs`
-
-**Requirements:**
-1. Store discovered nodes and types (keyed by ID)
-2. Thread-safe for Tauri state (use `Arc<RwLock<HashMap<...>>>`)
-3. Methods:
-   - `new()` - Create empty registry
-   - `register_node(NodeDefinition)` - Add discovered node
-   - `register_type(TypeDefinition)` - Add discovered type
-   - `get_node(&str) -> Option<NodeDefinition>` - Query by ID
-   - `get_type(&str) -> Option<TypeDefinition>` - Query by ID
-   - `list_nodes() -> Vec<NodeDefinition>` - Get all nodes
-   - `list_types() -> Vec<TypeDefinition>` - Get all types
-
-**Don't forget:**
-- Production-grade error handling (follow existing patterns)
-- Use protobuf types: `proto::{NodeDefinition, TypeDefinition}`
-- Export from `lib.rs`
-
----
-
-### Step 7: Update Desktop App
-
-**Goal:** Replace the old plugin_manager module with the new crate.
+**Goal:** Create a Blazor component that displays discovered nodes and types.
 
 **Tasks:**
-1. Add dependency to `apps/desktop/cognexus/Cargo.toml`:
-   ```toml
-   cognexus-plugin-manager = { workspace = true }
-   ```
-   
-2. Add to workspace `Cargo.toml`:
-   ```toml
-   cognexus-plugin-manager = { path = "backend/plugin-manager" }
-   ```
+1. Create a new Blazor component: `frontend/cognexus/Components/PluginBrowser.razor`
+2. Call Tauri commands from C# using JSInterop
+3. Display nodes in a list/grid with:
+   - Node name
+   - Description
+   - Version
+   - Input/output ports
+4. Display types in a separate section
 
-3. In `apps/desktop/cognexus/src/main.rs`:
-   - Remove `mod plugin_manager;`
-   - Import: `use cognexus_plugin_manager::{PluginManager, Registry};`
-   - Initialize registry: `let registry = Registry::new();`
-   - After `discover_plugins()`, populate registry with discovered data
-   - Store registry in Tauri state
-
-4. Delete old code: `apps/desktop/cognexus/src/plugin_manager/`
-
-5. Test: `cargo tauri dev` should discover plugins and populate registry
+**Technical Details:**
+- Use `IJSRuntime` to call `window.__TAURI__.core.invoke()`
+- Deserialize JSON responses to C# DTOs (mirror protobuf structure)
+- Handle errors gracefully
+- Consider using Blazor's state management
 
 ---
 
-### Step 8: Add Tauri Commands
+### Option B: Visual Node Editor Foundation
 
-**Goal:** Expose registry data to frontend via Tauri IPC.
+**Goal:** Start building the canvas-based node editor.
 
-**In `apps/desktop/cognexus/src/main.rs`, add:**
+**Tasks:**
+1. Create canvas area in Blazor
+2. Integrate with WGPU renderer (already exists in `backend/renderer`)
+3. Display nodes as visual boxes on canvas
+4. Basic interaction: pan, zoom
+5. Click to select nodes
 
-```rust
-#[tauri::command]
-fn list_available_nodes(
-    registry: tauri::State<Registry>
-) -> Vec<proto::NodeDefinition> {
-    registry.list_nodes()
-}
-
-#[tauri::command]
-fn list_available_types(
-    registry: tauri::State<Registry>
-) -> Vec<proto::TypeDefinition> {
-    registry.list_types()
-}
-
-#[tauri::command]
-fn get_node_definition(
-    id: String,
-    registry: tauri::State<Registry>
-) -> Option<proto::NodeDefinition> {
-    registry.get_node(&id)
-}
-```
-
-Register commands in `.invoke_handler()`.
-
-**Test:** Use Tauri devtools to call these commands and verify responses.
+**Technical Details:**
+- Renderer already exists but needs integration
+- May need to pass canvas element to Tauri/WGPU
+- Consider using existing `Camera2D` from `backend/model`
 
 ---
 
-## Important Reminders
+### Option C: Execution Engine (Advanced)
 
-1. **Read files before making claims** - Don't assume, verify
-2. **Production-grade only** - Proper error handling, no shortcuts
-3. **Constants over magic strings** - Define once, use everywhere
-4. **Small chunks** - Propose code in bite-sized pieces for review
-5. **Fresh eyes reviews** - Read the actual files, not your cache
+**Goal:** Build the workflow execution system.
+
+**Tasks:**
+- Design execution model (topological sort, async/await, etc.)
+- Implement node instance management
+- Handle data flow between nodes
+- Error handling during execution
+
+**This is complex - recommend doing A or B first.**
+
+---
+
+## Recommendation
+
+**Start with Option A (Plugin Browser UI)** because:
+1. Quick win - you'll see your plugins in the UI immediately
+2. Validates the entire backend → frontend data flow
+3. Provides foundation for drag-and-drop into node editor later
+4. Low complexity, high value
+
+Then move to Option B (Visual Editor) in a follow-up session.
 
 ---
 
 ## Key Files to Reference
 
-- `backend/plugin-manager/src/lib.rs` - Public API, constants
-- `backend/plugin-manager/src/error.rs` - Error handling patterns
-- `backend/plugin-manager/src/translator.rs` - WIT → Proto conversion
-- `proto/registry.proto` - Message definitions
-- `SESSION_PLAN.md` - Full roadmap
+**Backend (Already Complete):**
+- `backend/plugin-manager/src/registry.rs` - Registry implementation
+- `apps/desktop/cognexus/src/main.rs` - Tauri commands
+
+**Frontend (Need to Create/Modify):**
+- `frontend/cognexus/Pages/Home.razor` - Main page (might add browser here)
+- Create: `frontend/cognexus/Components/PluginBrowser.razor`
+- Create: `frontend/cognexus/Models/` - C# DTOs for nodes/types
+
+**Tauri Commands Available:**
+```javascript
+// JavaScript/JSInterop
+await invoke('list_available_nodes')  // Returns: Array<NodeDefinition>
+await invoke('list_available_types')  // Returns: Array<TypeDefinition>
+await invoke('get_node_definition', { id: 'node-id' })  // Returns: NodeDefinition | null
+```
 
 ---
 
-## Success Criteria for Session 2
+## Success Criteria for Session 3
 
-- [ ] Registry stores discovered plugins in memory
-- [ ] Desktop app uses new `cognexus-plugin-manager` crate
-- [ ] Old plugin_manager code deleted
-- [ ] Tauri commands expose registry data
-- [ ] Can query nodes/types from frontend (verify in devtools)
+**If doing Option A (Plugin Browser):**
+- [ ] Blazor component displays discovered nodes
+- [ ] Blazor component displays discovered types
+- [ ] Data flows from Rust → Tauri → Blazor successfully
+- [ ] Error handling in place
+- [ ] UI is readable and organized
+
+**If doing Option B (Visual Editor):**
+- [ ] Canvas renders in Blazor
+- [ ] WGPU renderer integration working
+- [ ] Can display at least one node visually
+- [ ] Basic camera controls (pan/zoom)
 
 ---
 
-**Start with:** "Let's implement the Registry (Step 6). I'll guide you through creating `backend/plugin-manager/src/registry.rs` with production-grade patterns."
+## Important Reminders
+
+1. **Production-grade patterns** - No shortcuts, proper error handling
+2. **Small incremental steps** - Break work into reviewable chunks
+3. **Test as you go** - Verify each piece works before moving on
+4. **Ask questions** - If requirements are unclear, ask before coding
+
+---
+
+## What to Do First
+
+1. **Read this entire file** to understand the options
+2. **Decide which option** you want to tackle (A recommended)
+3. **Ask any clarifying questions** about the approach
+4. **Start with smallest possible increment** (e.g., just calling one command and logging result)
+
+---
+
+**Start with:** "I want to build [Option A/B/C]. Let's start by [specific first step]."

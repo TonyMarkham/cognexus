@@ -28,6 +28,12 @@ pub enum PluginManagerError {
         #[source]
         source: wasmtime::Error,
     },
+
+    #[error("Lock error: {message}")]
+    LockError {
+        message: String,
+        location: ErrorLocation,
+    },
 }
 
 impl PluginManagerError {

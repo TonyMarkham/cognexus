@@ -2,14 +2,18 @@
 
 mod error;
 mod loader;
+mod registry;
 mod scanner;
 mod state;
 mod translator;
 
 pub use error::PluginManagerError;
 pub use loader::Loader;
+pub use registry::Registry;
 pub use scanner::scan_directory;
 pub use state::State;
+
+use crate::translator::{wit_node_to_proto, wit_type_to_proto};
 
 use common::error::error_location::ErrorLocation;
 
@@ -42,7 +46,7 @@ impl PluginManager {
     ///
     /// This scans for .wasm files, loads each component, determines its type
     /// by introspecting exports, and calls the appropriate discovery function.
-    pub fn discover_plugins(&mut self) -> Result<(), PluginManagerError> {
+    pub fn discover_plugins(&mut self, registry: &Registry) -> Result<(), PluginManagerError> {
         // Scan for .wasm files
         let component_paths = scan_directory(&self.builtin_path)?;
 
@@ -65,15 +69,19 @@ impl PluginManager {
                 TYPES_KIND => {
                     let types = self.loader.discover_types(&component)?;
                     info!("Discovered {} type(s)", types.len());
-                    for type_info in &types {
+                    for type_info in types {
                         debug!("  Type: {} ({})", type_info.name, type_info.id);
+                        let type_def = wit_type_to_proto(type_info);
+                        registry.register_type(type_def)?;
                     }
                 }
                 NODES_KIND => {
                     let nodes = self.loader.discover_nodes(&component)?;
                     info!("Discovered {} node(s)", nodes.len());
-                    for node_info in &nodes {
+                    for node_info in nodes {
                         debug!("  Node: {} ({})", node_info.name, node_info.id);
+                        let node_def = wit_node_to_proto(node_info);
+                        registry.register_node(node_def)?;
                     }
                 }
                 // Defensive: determine_component_kind should only return TYPES_KIND or NODES_KIND

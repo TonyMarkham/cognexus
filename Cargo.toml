@@ -39,10 +39,12 @@ wasmtime-wasi = { version = "40.0.0" }
 clap = { version = "4.5.53", features = ["derive"] }
 wit-bindgen-rt = { version = "0.44.0", features = ["bitflags"] }
 log = { version = "0.4.29" }
-fern = { version = "0.7.1" }
+fern = { version = "0.7.1", features = ["colored"] }
+humantime = { version = "2.3.0" }
 
 proto = { path = "backend/proto" }
 cognexus-renderer = { path = "backend/renderer" }
 cognexus-model = { path = "backend/model" }
 cognexus-types = { path = "backend/types" }
+cognexus-plugin-manager = { path = "backend/plugin-manager" }
 common = {path = "backend/common"}

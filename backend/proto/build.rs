@@ -19,6 +19,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let proto_files_refs: Vec<&str> = proto_files_str.iter().map(|s| s.as_str()).collect();
 
-    prost_build::compile_protos(&proto_files_refs, &[PROTO_DIR])?;
+    // Configure prost to derive serde traits
+    prost_build::Config::new()
+        .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
+        .compile_protos(&proto_files_refs, &[PROTO_DIR])?;
+
     Ok(())
 }
